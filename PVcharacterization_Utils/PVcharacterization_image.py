@@ -197,7 +197,7 @@ def crop_image(file):
 
     images_crop = []
     for index, image in enumerate(electrolum.image):  # [:-1] to Get rid of the last image
-        BORNE_INF = filters.threshold_otsu(image)
+        BORNE_INF = filters.threshold_otsu(image) # Otsu threshol is used to discriminate the noise from electolum signal
         image = np.where((image < BORNE_INF) | (image > BORNE_SUP), 0, image)
         if index == 0:  # We process the image as a top one
             image_crop, modale_width_0 = crop_segment_image(image, mode="top")
@@ -205,7 +205,7 @@ def crop_image(file):
         else:
             image_crop, _ = crop_segment_image(
                 image, mode="bottom", default_width=modale_width_0
-            )
+            ) # We fix the image width to the one of the top image
             images_crop.append(image_crop)
 
     crop_image = np.concatenate(tuple(images_crop), axis=0)
