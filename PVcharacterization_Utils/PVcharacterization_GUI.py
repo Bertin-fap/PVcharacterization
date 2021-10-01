@@ -1,6 +1,11 @@
-__all__ = ['Select_items']
+__all__ = ['Select_items','select_files']
 
 # Global variables used by Select_multi_items function
+from .PVcharacterization_global import (DEFAULT_DIR,
+                                       DATA_BASE_NAME,
+		                               DATA_BASE_TABLE,
+		                               USED_COLS,
+		                               PARAM_UNIT_DIC)
 GEOMETRY_ITEMS_SELECTION = '500x580+50+50'    # Size of the tkinter window
 
 def Select_items(list_item,title,mode = 'multiple'): 
@@ -52,3 +57,56 @@ def Select_items(list_item,title,mode = 'multiple'):
     yscrollbar.config(command = listbox.yview)
     window.mainloop()
     return val
+
+def select_files():
+    
+    '''The function `select_files` interactively selects *.txt or *.txt files from
+    a directory.
+    
+    Args:
+       DEFAULT_DIR (Path, global): root directory used for the file selection.
+       
+    Returns:
+       filenames (list of str): list of selected files
+    '''
+    
+    # Standard library imports
+    import os
+    import tkinter as tk
+    from tkinter import ttk
+    from tkinter import filedialog as fd
+
+
+    root = tk.Tk()
+    root.title('File Dialog')
+    root.resizable(False, False)
+    root.geometry('300x150')
+    global filenames, filetypes
+    filetypes = (
+            ('csv files', '*.csv'),
+            ('text files', '*.txt'), 
+            )
+
+    def select_files_():
+        global filenames,filetypes
+        
+        filenames = fd.askopenfilenames(
+            title='Select files',
+            initialdir=DEFAULT_DIR,
+            filetypes=filetypes)
+
+    open_button = ttk.Button(
+        root,
+        text='Select Files',
+        command=select_files_)
+    open_button.pack(expand=True)
+    
+    if os.name == 'nt':
+        tk.Button(root,
+                  text="EXIT",
+                  command=root.destroy).pack(expand=True)
+
+    root.mainloop()
+    
+    return filenames
+

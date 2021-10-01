@@ -3,6 +3,9 @@ __author__ = 'F. Bertin, A. Chabli'
 __license__ = "MIT"
 
 
-from .pvu_GUI import *
+from .PVcharacterization_GUI import *
+from .PVcharacterization import *
+from .PVcharacterization_global import *
+from .PVcharacterization_image import *
 
 
