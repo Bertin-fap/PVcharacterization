@@ -112,6 +112,7 @@ def py2gwyddion(image, file):
     a += f"XRes = {str(imgWidth)}\n".encode("utf8")
     a += f"YRes = {str(imgHeight)}\n".encode("utf8")
     a += (chr(0) * (4 - len(a) % 4)).encode("utf8")  # Adds the NULL padding
+                                                     # accordind to the Gwyddion .gsf format
 
     z = image.flatten().astype(
         dtype=np.float32
@@ -152,19 +153,19 @@ def crop_image(file):
         get_modale = lambda a: (Counter(a)).most_common(1)[0][0]
 
         shift_left = []  # list of the row image left border indice
-        width = []  # list of the row image width
+        width = []       # list of the row image width
         height = np.shape(img)[0]
         for jj in range(height):  # Sweep the image by rows
-            for ii in np.nonzero(
-                img[jj, :]
-            ):  # Finds the left border and the image width
-                try:
-                    shift_left.append(ii[0])
-                    width.append(ii[-1] - ii[0] + 1)
+            ii = np.nonzero(
+                img[jj]
+            )[0]  # Finds the left border and the image width
+            if len(ii):
+                shift_left.append(ii[0])
+                width.append(ii[-1] - ii[0] + 1)
 
-                except:  # The row contains only zero values
-                    shift_left.append(0)
-                    width.append(0)
+            else:  # The row contains only zero value
+                shift_left.append(0)
+                width.append(0)
 
         modale_shift_left = get_modale(
             shift_left
@@ -196,8 +197,13 @@ def crop_image(file):
     electrolum = pv.read_electolum_file(file, pack=False)
 
     images_crop = []
+    list_borne_inf =[]
+    nbr_images = len(electrolum.image)
     for index, image in enumerate(electrolum.image):  # [:-1] to Get rid of the last image
         BORNE_INF = filters.threshold_otsu(image) # Otsu threshol is used to discriminate the noise from electolum signal
+        list_borne_inf.append(BORNE_INF)
+        if index == nbr_images - 1: # get rid of the last image if the image contains only noise
+            if(np.abs(np.mean(list_borne_inf) - BORNE_INF) > 5 * np.sqrt(np.std(list_borne_inf))):break
         image = np.where((image < BORNE_INF) | (image > BORNE_SUP), 0, image)
         if index == 0:  # We process the image as a top one
             image_crop, modale_width_0 = crop_segment_image(image, mode="top")

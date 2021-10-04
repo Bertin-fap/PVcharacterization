@@ -4,22 +4,19 @@
     Useful functions for correctly parsing the aging data files
 """
 __all__ = [
-    "crop_image",
     "data_parsing",
     "df2sqlite",
     "parse_filename",
-    "plot_diff_param",
-    "py2gwyddion",
-    "read_electolum_file",
+    "plot_params",
     "sieve_files",
 ]
 
 #Internal imports 
 from .PVcharacterization_global import (DEFAULT_DIR,
                                         DATA_BASE_NAME,
-		                                DATA_BASE_TABLE,
-		                                USED_COLS,
-		                                PARAM_UNIT_DIC)
+                                        DATA_BASE_TABLE,
+                                        USED_COLS,
+                                        PARAM_UNIT_DIC)
                                        
 def data_parsing(filepath, parse_all=True):
 
@@ -291,16 +288,45 @@ def sieve_files(pow_select, time_select, name_select, database_path):
     return querry
 
 
-def plot_diff_param(params, df_meta):
+def set_min_max_param(df_meta,diff=False):
     
-    '''Plots for different experiments and for different parameters the relative 
-    evolution (in %) of the parameters vs power
+    if diff:
+        min_max_param = {"Rseries":[-30, 30],
+                         "Rshunt":[-30, 30],
+                         "Voc":[-3.2, 1.6],
+                         "Isc":[-3.2, 1.6],
+                         "Pmax":[-3.2, 1.6],
+                         "Fill Factor":[-3.2, 1.6]}
+    else:
+        USED_COLS_copy = list(pv.USED_COLS)
+        USED_COLS_copy.remove("Title")
+        df_meta_ = df_meta.astype(dtype={col_name:float for col_name in USED_COLS_copy}, copy=True)
+        df_stat = df_meta_.describe()
+        min_max_param = {param:np.array(list(value.values()))
+                        for param,value in df_stat.loc[['min','max'],:].to_dict().items()}
+        min_max_param = {param:[x[0] - (ecart := np.diff(x)/2),x[1] + ecart]
+                        for param,x in min_max_param.items()}
+        
+    return min_max_param
+
+def plot_params(params, df_meta,diff=False):
+    
+    '''Plots for different experiments and for different parameters:
+       - the relative  evolution (in %) of the parameters vs power if diff=True
+       - the parameters vs power if diff=False
+    The parameters values vs experiments, times, powers and are store in a dataframe like:
     
       ID                          Voc         Isc   Rseries   power time                                                         
    JINERGY3272023326035_0200W_T0  50.5082    1.827  1.95841     200   T0  
    JINERGY3272023326035_0200W_T1  50.6780  1.82484  1.87985     200   T1   
    JINERGY3272023326035_0200W_T2  50.3452  1.79790  2.09313     200   T2  
    JINERGY3272023326035_0400W_T0  51.8321  3.61464  1.05142     400   T0 
+   
+   Args:
+       params (list of str): list of parameters to be plotted
+       df_meta (dataframe): dataframe organized as above
+       diff (bool): if true the parameters relative evolution in %, vs power, between every difference time are plotted
+                    if false the parameters evolution  vs power are plotted
 
     '''
 
@@ -311,303 +337,103 @@ def plot_diff_param(params, df_meta):
     import matplotlib.pyplot as plt
     import numpy as np
     
-    color = ["#8F3E3A", "#8F5B3A", "#8F7B3A", "#7B8F3A", "#458F3A",] # "#3A8F72", "#433A8F" ]
-    marker = ["o", "v", ">", "<", "s", "p"]
-    dic_ylim = {"Rseries":[-30, 30],
-                "Rshunt":[-30, 30],
-                "Voc":[-3.2, 1.6],
-                "Isc":[-3.2, 1.6],
-                "Pmax":[-3.2, 1.6],
-                "Fill Factor":[-3.2, 1.6]}
-
-    pow_list = sorted(list(set(df_meta["power"].tolist())))
-    pow_add_nbr = 2
-    pow_median = (min(pow_list) + max(pow_list)) / 2
-    pow_add = (max(pow_list) - min(pow_list)) / 2
-    pow_min, pow_max = (
-        min(pow_list) - pow_add_nbr * pow_add,
-        max(pow_list) + pow_add_nbr * pow_add,
-    )
-
-    nbr_time = len(set(df_meta["time"].tolist()))
+    color = ['#0000A0','#1569C7','#78f89d','#FFEB3B','#E64A19'] # markers color
+                                                                # a different color per power
+    marker = ["o", "v", ">", "<", "s", "p"]                     # maker symbol
+                                                                # a different symbol per experiment
+        
+    list_exp = pd.unique(df_meta['name'])
+    nbr_time = len(pd.unique(df_meta['time'])) # Number of different times
     assert nbr_time > 1, "not enough time measurements. Should be greeter than 1"
-    fig = plt.figure(figsize=(15, 15))
-    gs = fig.add_gridspec(
-        len(params), int(nbr_time * (nbr_time - 1) / 2), hspace=0, wspace=0
+    
+    # Set y dynamic of the plots
+    if diff:
+        combination_length = 2
+        dic_ylim = set_min_max_param(df_meta,diff=True)        
+    else:
+        combination_length = 1
+        dic_ylim = set_min_max_param(df_meta,diff=False)
+    
+    #  Set x dynamic of the plots
+    pow_list = sorted(pd.unique(df_meta['power']))
+    pow_add_nbr = 2
+    pow_add = pow_add_nbr * (max(pow_list) - min(pow_list))
+    pow_min, pow_max = (
+        min(pow_list) -  pow_add,
+        max(pow_list) +  pow_add,
     )
+
+    
+    fig = plt.figure(figsize=(15,15) if len(params)>1 else (10,5))
+    gs = fig.add_gridspec(
+        len(params),
+        int(nbr_time * (nbr_time - 1) / 2) if diff else nbr_time,
+        hspace=0,
+        wspace=0
+    )
+
     ax = gs.subplots(sharex="col", sharey="row")
-
-
-    list_exp = list(set(df_meta["name"]))
+    if len(params) ==1: # we trasform a 1D array to a 2D array
+        ax = ax.reshape((1,np.shape(ax)[0]))
 
     for idx_exp, exp in enumerate(list_exp): # Loop on the experiments
+        
         df_exp = df_meta.query("name == @exp")
 
         # split df_exp into a dic keyed by time (T0,T1,...). The values are dataframe df_exp
         # with column time=T0,T1,...
-        dic_time = {}
-        set_times = set(df_exp["time"].tolist())
-        for time in set_times:
-            dic_time[time] = df_exp.loc[df_exp["time"] == time, :]
-
-        list_t = sorted(list(set(df_exp["time"].tolist())))
+        list_t = sorted(pd.unique(df_exp['time']))
+        dic_time = {time : df_exp.loc[df_exp["time"] == time, :] for time in list_t}
+        
 
         for idx_param, param in enumerate(params): # Loop on the parameter
             dic_time_cp = {}
 
-            for time in combinations(list_t, 2): # Loop on time difference
-                val = np.array(dic_time[time[1]][param].astype(float).tolist())
-                ref = np.array(dic_time[time[0]][param].astype(float).tolist())
-                delta = 100 * (val - ref) / ref
-                dic_time_cp[time[1] + "-" + time[0]] = dic_time[time[1]].copy()
-                dic_time_cp[time[1] + "-" + time[0]]["Delta_" + param] = delta
+            for time in combinations(list_t, combination_length): # Loop on time difference
+                if combination_length>1 :
+                    val = np.array(dic_time[time[1]][param].astype(float).tolist())
+                    ref = np.array(dic_time[time[0]][param].astype(float).tolist())
+                    delta = 100 * (val - ref) / ref
+                    dic_time_cp[time[1] + "-" + time[0]] = dic_time[time[1]].copy()
+                    dic_time_cp[time[1] + "-" + time[0]]["Delta_" + param] = delta
+                else:
+                    dic_time_cp[time[0]] = dic_time[time[0]].copy()
+                    dic_time_cp[time[0]]["Delta_" + param] = np.array(dic_time[time[0]][param].astype(float).tolist())
 
-            list_items = sorted(dic_time_cp.keys())
-            if len(list_items) == 1:
-                key = list(dic_time_cp.keys())[0]
-                ax[idx_param].scatter(
-                    dic_time_cp[key]["power"],
-                    dic_time_cp[key]["Delta_" + param],
-                    c=color,
-                )
-                ax[idx_param].axhline(y=0, color="red", linestyle="--")
-                if idx_param == 0:
-                    ax[idx_param].set_title(key)
-                ax[idx_param].set_xlabel("Power ($W/{m^2}$)")
-                ax[idx_param].set_ylabel("$\Delta$ " + param + " (%)")
-                ax[idx_param].tick_params(axis="x", rotation=90)
-                ax[idx_param].set_xlim([pow_min, pow_max])
-                ax[idx_param].set_ylim(dic_ylim.get(param,[-3.2, 1.6]))
-                for axis in ["top", "bottom", "left", "right"]:
-                    ax[idx_param].spines[axis].set_linewidth(2)
-            else:
-                for idx_time, key in enumerate(list_items):
+            list_times_diff = sorted(dic_time_cp.keys())
+    
+            for idx_time, key in enumerate(list_times_diff):
+                for idx_power,x_y in enumerate(zip(dic_time_cp[key]["power"],
+                                                   dic_time_cp[key]["Delta_" + param])):
                     ax[idx_param, idx_time].scatter(
-                        dic_time_cp[key]["power"],
-                        dic_time_cp[key]["Delta_" + param],
-                        c=color,
-                        marker=marker[idx_exp]
-                    )
-                    ax[idx_param, idx_time].axhline(y=0, color="red", linestyle="--")
-                    if idx_param == 0:
-                        ax[idx_param, idx_time].set_title(key)
-                    ax[idx_param, idx_time].set_xlabel("Power ($W/{m^2}$)")
-                    if idx_time == 0:
+                            x_y[0],
+                            x_y[1],
+                            c=color[idx_power] ,
+                            marker=marker[idx_exp],
+                            label=exp+' '+str(x_y[0])
+                        )
+
+
+                ax[idx_param, idx_time].axhline(y=0, color="red", linestyle="--")
+                if idx_param == 0:
+                    ax[idx_param, idx_time].set_title(key)
+                ax[idx_param, idx_time].set_xlabel("Power ($W/{m^2}$)")
+                if idx_time == 0:
+                    if combination_length > 1:
                         ax[idx_param, idx_time].set_ylabel("$\Delta$ " + param + " (%)")
-                    ax[idx_param, idx_time].tick_params(axis="x", rotation=90)
-                    ax[idx_param, idx_time].set_xticks(pow_list, minor=False)
-                    ax[idx_param, idx_time].set_xticklabels(pow_list, fontsize=12)
-                    ax[idx_param, idx_time].set_xlim([pow_min, pow_max])
-                    ax[idx_param, idx_time].set_ylim(dic_ylim.get(param,[-3.2, 1.6]))
-                    for axis in ["top", "bottom", "left", "right"]:
-                        ax[idx_param, idx_time].spines[axis].set_linewidth(2)
-
-    fig.suptitle(chr(9679) + " " + list_exp[0], fontsize=15)
-    fig.subplots_adjust(top=0.95)
-
-
-def read_electolum_file(file, pack=True):
-
-    """
-    Reads raw files .data generated by the greateyes camera
-    
-    Args:
-        file (Path): absolute path of the binary file
-        pack (boolean): if true the F frame are stacked in one image
-        
-    Returns:
-        electrolum (namedtuple):
-           electrolum.imgWidth (integer): number N of rows
-           electrolum.imgHeight (integer): number M of columns
-           electrolum.numPatterns (integer): number F of frame
-           electrolum.image (list of F NxM nparray of floats): list of F images
-           
-    todo: the info1, info2, info3 fields are not correctly decoded
-
-    """
-
-    # Standard library import
-    import struct
-    from collections import namedtuple
-
-    # 3rd party imports
-    import numpy as np
-
-    data_struct = namedtuple(
-        "PV_electrolum",
-        [
-            "imgWidth",
-            "imgHeight",
-            "numPatterns",
-            "exptime",
-            "info1",
-            "info2",
-            "info3",
-            "image",
-        ],
-    )
-    data = open(file, "rb").read()
-
-    # Header parsing
-    fmt = "2i"
-    imgWidth, imgHeight = struct.unpack(fmt, data[: struct.calcsize(fmt)])
-    pos = struct.calcsize(fmt) + 4
-    fmt = "i"
-    numPatterns = struct.unpack(fmt, data[pos : pos + struct.calcsize(fmt)])[0]
-
-    pos = 18
-    lastPaternIsFractional = struct.unpack(fmt, data[pos : pos + struct.calcsize(fmt)])[
-        0
-    ]
-    if lastPaternIsFractional == 1:
-        print("WARNING: the last image will contain overlapping information")
-
-    pos = 50
-    exptime = struct.unpack(fmt, data[pos : pos + struct.calcsize(fmt)])[0]
-
-    fmt = "21s"
-    pos = 100
-    info1 = struct.unpack(fmt, data[pos : pos + struct.calcsize(fmt)])[
-        0
-    ]  # .decode('utf-8')
-
-    fmt = "51s"
-    pos = 130
-    info2 = struct.unpack(fmt, data[pos : pos + struct.calcsize(fmt)])[
-        0
-    ]  # .decode('utf-8')
-
-    fmt = "501s"
-    pos = 200
-    info3 = struct.unpack(fmt, data[pos : pos + struct.calcsize(fmt)])[
-        0
-    ]  # .decode('utf-8')
-
-    # Images parsing
-    list_images = []
-    for numPattern in range(numPatterns):
-        fmt = str(imgWidth * imgHeight) + "H"
-        pos = 1024 * 4 + numPattern * struct.calcsize(fmt)
-
-        y = struct.unpack(fmt, data[pos : pos + struct.calcsize(fmt)])
-        list_images.append(np.array(y).reshape((imgHeight, imgWidth)))
-
-    if pack:
-        list_images = [np.concatenate(tuple(list_images), axis=0)]
-
-    return data_struct(
-        imgWidth, imgHeight, numPatterns, exptime, info1, info2, info3, list_images
-    )
-
-
-def py2gwyddion(image, file):
-
-    """The function py2gwyddion stores an array as a simple field files Gwyddion
-        format(.gsf). For more information see the Gwyddionuser guide §5.13 
-        http://gwyddion.net/documentation/user-guide-en/gsf.html
-    """
-    # Standard library import
-    import struct
-
-    # 3rd party imports
-    import numpy as np
-
-    imgHeight, imgWidth = np.shape(image)
-    a = b"Gwyddion Simple Field 1.0\n"  # magic line
-    a += f"XRes = {str(imgWidth)}\n".encode("utf8")
-    a += f"YRes = {str(imgHeight)}\n".encode("utf8")
-    a += (chr(0) * (4 - len(a) % 4)).encode("utf8")  # Adds the NULL padding
-
-    z = image.flatten().astype(
-        dtype=np.float32
-    )  # Gwyddion reads IEEE 32bit single-precision floating point numbers
-    a += struct.pack(str(len(z)) + "f", *z)
-
-    with open(file, "wb") as binary_file:
-        binary_file.write(a)
-
-
-def crop_image(file):
-
-    """
-    The function crop_image reads, crops and stitches a set of electroluminesence images.
-    
-    Args:
-       file (Path) : absolute path of the electroluminescence image.
-       
-    Returns:
-       
-    """
-    import numpy as np
-
-    SAFETY_WIDTH = 10
-    BORNE_SUP = np.Inf
-    BORNE_INF = 800
-
-    def crop_segment_image(img, mode="top", default_width=0):
-
-        # Standard library import
-        from collections import Counter
-
-        get_modale = lambda a: (Counter(a)).most_common(1)[0][0]
-
-        shift_left = []  # list of the row image left border indice
-        width = []  # list of the row image width
-        height = np.shape(img)[0]
-        for jj in range(height):  # Sweep the image by rows
-            for ii in np.nonzero(
-                img[jj, :]
-            ):  # Finds the left border and the image width
-                try:
-                    shift_left.append(ii[0])
-                    width.append(ii[-1] - ii[0] + 1)
-
-                except:  # The row contains only zero values
-                    shift_left.append(0)
-                    width.append(0)
-
-        modale_shift_left = get_modale(
-            shift_left
-        )  # Finds the modale value of the left boudary
-        if mode == "top":
-            modale_width = (
-                get_modale(width) - SAFETY_WIDTH
-            )  # Reduces the width to prevent for
-            # further overestimation
-        else:  # Fixes the image width to the one of the top layer
-            modale_width = default_width
-
-        if (
-            mode == "top"
-        ):  # Slice the image throwing away the upper row with width < modale_width
-            img_crop = img[
-                np.where(width >= modale_width)[0][0] : height,
-                modale_shift_left : modale_width + modale_shift_left,
-            ]
-
-        else:  # Slice the image throwing away the lower row with width < modale_width
-            img_crop = img[
-                0 : np.where(width >= modale_width)[0][-1],
-                modale_shift_left : modale_width + modale_shift_left,
-            ]
-
-        return img_crop, modale_width
-
-    electrolum = read_electolum_file(file, pack=False)
-
-    images_crop = []
-    for index, image in enumerate(electrolum.image[:-1]):  # Get rid of the last image
-
-        image = np.where((image < BORNE_INF) | (image > BORNE_SUP), 0, image)
-        if index == 0:  # We process the image as a top one
-            image_crop, modale_width_0 = crop_segment_image(image, mode="top")
-            images_crop.append(image_crop)
-        else:
-            image_crop, _ = crop_segment_image(
-                image, mode="bottom", default_width=modale_width_0
-            )
-            images_crop.append(image_crop)
-
-    crop_image = np.concatenate(tuple(images_crop), axis=0)
-
-    return crop_image
+                    else:
+                        ax[idx_param, idx_time].set_ylabel(f'{param} ({pv.PARAM_UNIT_DIC[param]})')
+                ax[idx_param, idx_time].tick_params(axis="x", rotation=90)
+                ax[idx_param, idx_time].set_xticks(pow_list, minor=False)
+                ax[idx_param, idx_time].set_xticklabels(pow_list, fontsize=12)
+                ax[idx_param, idx_time].set_xlim([pow_min, pow_max])
+                ax[idx_param, idx_time].set_ylim(dic_ylim.get(param,[-3.2, 1.6]))
+                for axis in ["top", "bottom", "left", "right"]:
+                    ax[idx_param, idx_time].spines[axis].set_linewidth(2)
+                    
+    handles, labels = ax[0,0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc='center right',bbox_to_anchor=(0.6,0, 0.5, 1))
+    #title = chr(9679) + " " + list_exp[0]
+    #if len(list_exp) ==2 : title = title + ', ' + chr(9660) + " " + list_exp[1]
+    #fig.suptitle(title, fontsize=13)
+    #fig.subplots_adjust(top=0.95 if len(params)>1 else 0.85)
