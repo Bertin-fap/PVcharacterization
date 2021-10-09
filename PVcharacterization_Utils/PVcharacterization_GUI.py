@@ -1,4 +1,4 @@
-__all__ = ['Select_items','select_files']
+__all__ = ['Select_items','select_files','select_data_dir']
 
 # Global variables used by Select_multi_items function
 from .PVcharacterization_global import (DEFAULT_DIR,
@@ -7,6 +7,7 @@ from .PVcharacterization_global import (DEFAULT_DIR,
 		                               USED_COLS,
 		                               PARAM_UNIT_DIC)
 GEOMETRY_ITEMS_SELECTION = '500x580+50+50'    # Size of the tkinter window
+GEOMETRY_SELECT_DIR = '500x550+50+50'
 
 def Select_items(list_item,title,mode = 'multiple'): 
 
@@ -109,4 +110,55 @@ def select_files():
     root.mainloop()
     
     return filenames
+
+def select_data_dir(root) :
+    
+    '''
+    Selection of database files to be merged
+    
+    Arguments: none
+    
+    Returns:
+        database (str): database type (scopus or wos)
+        filename (str): name of the merged database
+        in_dir (str): name of the folder where the databases to be merged are stored
+        out_dir (str): name of the folder where the merged database will be stored
+
+    '''
+    # Standard library imports
+    import os
+    import tkinter as tk
+    from tkinter import ttk
+    from tkinter import messagebox
+    from tkinter import filedialog
+    from pathlib import Path
+
+    
+    global IN_DIR
+     
+    tk_root = tk.Tk()
+    tk_root.geometry(GEOMETRY_SELECT_DIR)
+    tk_root.title("Dir select GUI") 
+    
+    
+    def indir_folder_choice():
+        global IN_DIR
+        IN_DIR = filedialog.askdirectory(initialdir=str(root), title="Select in_dir folder")                             
+
+    #                               Choice of the data directory
+    # -------------------------------------------------------------------------------------------
+   
+    indir_button = ttk.Button(tk_root, text="In-dir folder", command=indir_folder_choice)
+    indir_button.pack()
+    
+    
+    if os.name == 'nt': # Work with nt not macos
+        tk.Button(tk_root, text="EXIT", command=tk_root.destroy).pack()
+    
+    tk_root.mainloop()
+    
+    return IN_DIR
+
+
+
 

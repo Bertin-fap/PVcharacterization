@@ -141,8 +141,9 @@ def crop_image(file):
     #Internal import 
     import PVcharacterization_Utils as pv
 
-    SAFETY_WIDTH = 10
+    SAFETY_WIDTH = 10 # The width of the top image is set to the coputed with - SAFETY_WIDTH
     BORNE_SUP = np.Inf
+    N_SIGMA = 5       # Number of RMS used to discriminate outlier
     
 
     def crop_segment_image(img, mode="top", default_width=0):
@@ -150,7 +151,7 @@ def crop_image(file):
         # Standard library import
         from collections import Counter
 
-        get_modale = lambda a: (Counter(a)).most_common(1)[0][0]
+        get_modale = lambda a: (Counter(a[a != 0])).most_common(1)[0][0]
 
         shift_left = []  # list of the row image left border indice
         width = []       # list of the row image width
@@ -168,11 +169,11 @@ def crop_image(file):
                 width.append(0)
 
         modale_shift_left = get_modale(
-            shift_left
+            np.array(shift_left)
         )  # Finds the modale value of the left boudary
         if mode == "top":
             modale_width = (
-                get_modale(width) - SAFETY_WIDTH
+                get_modale(np.array(width)) - SAFETY_WIDTH
             )  # Reduces the width to prevent for
             # further overestimation
         else:  # Fixes the image width to the one of the top layer
@@ -200,12 +201,12 @@ def crop_image(file):
     list_borne_inf =[]
     nbr_images = len(electrolum.image)
     for index, image in enumerate(electrolum.image):  # [:-1] to Get rid of the last image
-        BORNE_INF = filters.threshold_otsu(image) # Otsu threshol is used to discriminate the noise from electolum signal
+        BORNE_INF = filters.threshold_otsu(image) # Otsu threshold is used to discriminate the noise from electolum signal
         list_borne_inf.append(BORNE_INF)
         if index == nbr_images - 1: # get rid of the last image if the image contains only noise
-            if(np.abs(np.mean(list_borne_inf) - BORNE_INF) > 5 * np.sqrt(np.std(list_borne_inf))):break
+            if(np.abs(np.mean(list_borne_inf) - BORNE_INF) > N_SIGMA * np.sqrt(np.std(list_borne_inf))):break
         image = np.where((image < BORNE_INF) | (image > BORNE_SUP), 0, image)
-        if index == 0:  # We process the image as a top one
+        if index == 0:  # We process the top image
             image_crop, modale_width_0 = crop_segment_image(image, mode="top")
             images_crop.append(image_crop)
         else:
@@ -214,6 +215,6 @@ def crop_image(file):
             ) # We fix the image width to the one of the top image
             images_crop.append(image_crop)
 
-    crop_image = np.concatenate(tuple(images_crop), axis=0)
+    croped_image = np.concatenate(tuple(images_crop), axis=0)
 
-    return crop_image
+    return croped_image

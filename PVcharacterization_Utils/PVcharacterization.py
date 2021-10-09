@@ -196,7 +196,7 @@ def parse_filename(file):
     let file = 'C:/Users/franc/PVcharacterization_files/JINERGY3272023326035_0200W_T2.csv'
     we obtain:
         FileInfo.power = 200
-        FileInfo.time = "T2"
+        FileInfo.treatment = "T2"
         FileInfo.time = "JINERGY3272023326035"
     
     """
@@ -204,14 +204,14 @@ def parse_filename(file):
     from collections import namedtuple
     import re
 
-    FileNameInfo = namedtuple("FileNameInfo", "power time name file")
+    FileNameInfo = namedtuple("FileNameInfo", "power treatment name file")
     re_power = re.compile(r"(?<=\_)\d{4}(?=W\_)")
-    re_time = re.compile(r"(?<=\_)T\d{1}(?=\.)")
-    re_name = re.compile(r"[A-Z]*\d{1,15}(?=\_)")
+    re_treatment = re.compile(r"(?<=\_)T\d{1}(?=\.)")
+    re_name = re.compile(r"[A-Z-\_]*\d{1,50}(?=\_)")
 
     FileInfo = FileNameInfo(
         power=int(re.findall(re_power, file)[0]),
-        time=re.findall(re_time, file)[0],
+        treatment=re.findall(re_treatment, file)[0],
         name=re.findall(re_name, file)[0],
         file=file,
     )
@@ -247,7 +247,7 @@ def df2sqlite(dataframe, file=None, tbl_name="import"):
     conn.close()
 
 
-def sieve_files(pow_select, time_select, name_select, database_path):
+def sieve_files(pow_select, treatment_select, name_select, database_path):
 
     """The sieve_files select 
     """
@@ -266,7 +266,7 @@ def sieve_files(pow_select, time_select, name_select, database_path):
                         FROM $table_name 
                         WHERE name  IN $name_select
                         AND power IN $pow_select
-                        AND time IN $time_select
+                        AND treatment IN $treatment_select
                         ORDER BY name ASC
                         LIMIT 50"""
     )
@@ -277,7 +277,7 @@ def sieve_files(pow_select, time_select, name_select, database_path):
                 "table_name": DATA_BASE_TABLE,
                 "name_select": conv2str(name_select),
                 "pow_select": conv2str(pow_select),
-                "time_select": conv2str(time_select),
+                "treatment_select": conv2str(treatment_select),
             }
         )
     )
