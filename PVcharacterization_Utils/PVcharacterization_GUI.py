@@ -7,7 +7,7 @@ from .PVcharacterization_global import (DEFAULT_DIR,
 		                               USED_COLS,
 		                               PARAM_UNIT_DIC)
 GEOMETRY_ITEMS_SELECTION = '500x580+50+50'    # Size of the tkinter window
-GEOMETRY_SELECT_DIR = '500x550+50+50'
+GEOMETRY_SELECT_DIR = "750x250"
 
 def Select_items(list_item,title,mode = 'multiple'): 
 
@@ -111,54 +111,40 @@ def select_files():
     
     return filenames
 
+
+
 def select_data_dir(root) :
-    
+
     '''
-    Selection of database files to be merged
+    Selection of a folder
     
-    Arguments: none
+    Args:
+        root (Path): initial folder
     
     Returns:
-        database (str): database type (scopus or wos)
-        filename (str): name of the merged database
-        in_dir (str): name of the folder where the databases to be merged are stored
-        out_dir (str): name of the folder where the merged database will be stored
+       (str): selected folder
 
     '''
+    
     # Standard library imports
-    import os
     import tkinter as tk
     from tkinter import ttk
-    from tkinter import messagebox
     from tkinter import filedialog
-    from pathlib import Path
-
     
-    global IN_DIR
-     
-    tk_root = tk.Tk()
-    tk_root.geometry(GEOMETRY_SELECT_DIR)
-    tk_root.title("Dir select GUI") 
+    global in_dir
     
     
-    def indir_folder_choice():
-        global IN_DIR
-        IN_DIR = filedialog.askdirectory(initialdir=str(root), title="Select in_dir folder")                             
-
-    #                               Choice of the data directory
-    # -------------------------------------------------------------------------------------------
-   
-    indir_button = ttk.Button(tk_root, text="In-dir folder", command=indir_folder_choice)
-    indir_button.pack()
+    win= tk.Tk()
+    win.geometry(GEOMETRY_SELECT_DIR )
+    def select_file():
+        global in_dir
+        in_dir= filedialog.askdirectory(initialdir=str(root), title="Select in_dir folder")
+        tk.Label(win, text=in_dir, font=13).pack()
     
+    tk.Label(win, text="Click the Button to Select a Folder", font=('Aerial 18 bold')).pack(pady=20)
+    button= ttk.Button(win, text="Select", command= select_file)
+    button.pack(ipadx=5, pady=15)
+    win.mainloop()
+    return in_dir
     
-    if os.name == 'nt': # Work with nt not macos
-        tk.Button(tk_root, text="EXIT", command=tk_root.destroy).pack()
-    
-    tk_root.mainloop()
-    
-    return IN_DIR
-
-
-
 

@@ -7,7 +7,6 @@ __all__ = [
     "data_parsing",
     "df2sqlite",
     "parse_filename",
-    "plot_params",
     "sieve_files",
 ]
 
@@ -204,16 +203,16 @@ def parse_filename(file):
     from collections import namedtuple
     import re
 
-    FileNameInfo = namedtuple("FileNameInfo", "power treatment name file")
-    re_power = re.compile(r"(?<=\_)\d{4}(?=W\_)")
+    FileNameInfo = namedtuple("FileNameInfo", "irradiance treatment name file_full_path")
+    re_irradiance = re.compile(r"(?<=\_)\d{4}(?=W\_)")
     re_treatment = re.compile(r"(?<=\_)T\d{1}(?=\.)")
     re_name = re.compile(r"[A-Z-\_]*\d{1,50}(?=\_)")
 
     FileInfo = FileNameInfo(
-        power=int(re.findall(re_power, file)[0]),
+        irradiance=int(re.findall(re_irradiance, file)[0]),
         treatment=re.findall(re_treatment, file)[0],
         name=re.findall(re_name, file)[0],
-        file=file,
+        file_full_path=file,
     )
     return FileInfo
 
@@ -247,7 +246,7 @@ def df2sqlite(dataframe, file=None, tbl_name="import"):
     conn.close()
 
 
-def sieve_files(pow_select, treatment_select, name_select, database_path):
+def sieve_files(irradiance_select, treatment_select, name_select, database_path):
 
     """The sieve_files select 
     """
@@ -262,10 +261,10 @@ def sieve_files(pow_select, treatment_select, name_select, database_path):
     cur = conn.cursor()
 
     querry_d = Template(
-        """SELECT file
+        """SELECT file_full_path
                         FROM $table_name 
                         WHERE name  IN $name_select
-                        AND power IN $pow_select
+                        AND irradiance IN $irradiance_select
                         AND treatment IN $treatment_select
                         ORDER BY name ASC
                         LIMIT 50"""
@@ -276,7 +275,7 @@ def sieve_files(pow_select, treatment_select, name_select, database_path):
             {
                 "table_name": DATA_BASE_TABLE,
                 "name_select": conv2str(name_select),
-                "pow_select": conv2str(pow_select),
+                "irradiance_select": conv2str(irradiance_select),
                 "treatment_select": conv2str(treatment_select),
             }
         )
@@ -287,153 +286,3 @@ def sieve_files(pow_select, treatment_select, name_select, database_path):
     conn.close()
     return querry
 
-
-def set_min_max_param(df_meta,diff=False):
-    
-    if diff:
-        min_max_param = {"Rseries":[-30, 30],
-                         "Rshunt":[-30, 30],
-                         "Voc":[-3.2, 1.6],
-                         "Isc":[-3.2, 1.6],
-                         "Pmax":[-3.2, 1.6],
-                         "Fill Factor":[-3.2, 1.6]}
-    else:
-        USED_COLS_copy = list(pv.USED_COLS)
-        USED_COLS_copy.remove("Title")
-        df_meta_ = df_meta.astype(dtype={col_name:float for col_name in USED_COLS_copy}, copy=True)
-        df_stat = df_meta_.describe()
-        min_max_param = {param:np.array(list(value.values()))
-                        for param,value in df_stat.loc[['min','max'],:].to_dict().items()}
-        min_max_param = {param:[x[0] - (ecart := np.diff(x)/2),x[1] + ecart]
-                        for param,x in min_max_param.items()}
-        
-    return min_max_param
-
-def plot_params(params, df_meta,diff=False):
-    
-    '''Plots for different experiments and for different parameters:
-       - the relative  evolution (in %) of the parameters vs power if diff=True
-       - the parameters vs power if diff=False
-    The parameters values vs experiments, times, powers and are store in a dataframe like:
-    
-      ID                          Voc         Isc   Rseries   power time                                                         
-   JINERGY3272023326035_0200W_T0  50.5082    1.827  1.95841     200   T0  
-   JINERGY3272023326035_0200W_T1  50.6780  1.82484  1.87985     200   T1   
-   JINERGY3272023326035_0200W_T2  50.3452  1.79790  2.09313     200   T2  
-   JINERGY3272023326035_0400W_T0  51.8321  3.61464  1.05142     400   T0 
-   
-   Args:
-       params (list of str): list of parameters to be plotted
-       df_meta (dataframe): dataframe organized as above
-       diff (bool): if true the parameters relative evolution in %, vs power, between every difference time are plotted
-                    if false the parameters evolution  vs power are plotted
-
-    '''
-
-    # Standard library imports
-    from itertools import combinations
-
-    # 3rd party import
-    import matplotlib.pyplot as plt
-    import numpy as np
-    
-    color = ['#0000A0','#1569C7','#78f89d','#FFEB3B','#E64A19'] # markers color
-                                                                # a different color per power
-    marker = ["o", "v", ">", "<", "s", "p"]                     # maker symbol
-                                                                # a different symbol per experiment
-        
-    list_exp = pd.unique(df_meta['name'])
-    nbr_time = len(pd.unique(df_meta['time'])) # Number of different times
-    assert nbr_time > 1, "not enough time measurements. Should be greeter than 1"
-    
-    # Set y dynamic of the plots
-    if diff:
-        combination_length = 2
-        dic_ylim = set_min_max_param(df_meta,diff=True)        
-    else:
-        combination_length = 1
-        dic_ylim = set_min_max_param(df_meta,diff=False)
-    
-    #  Set x dynamic of the plots
-    pow_list = sorted(pd.unique(df_meta['power']))
-    pow_add_nbr = 2
-    pow_add = pow_add_nbr * (max(pow_list) - min(pow_list))
-    pow_min, pow_max = (
-        min(pow_list) -  pow_add,
-        max(pow_list) +  pow_add,
-    )
-
-    
-    fig = plt.figure(figsize=(15,15) if len(params)>1 else (10,5))
-    gs = fig.add_gridspec(
-        len(params),
-        int(nbr_time * (nbr_time - 1) / 2) if diff else nbr_time,
-        hspace=0,
-        wspace=0
-    )
-
-    ax = gs.subplots(sharex="col", sharey="row")
-    if len(params) ==1: # we trasform a 1D array to a 2D array
-        ax = ax.reshape((1,np.shape(ax)[0]))
-
-    for idx_exp, exp in enumerate(list_exp): # Loop on the experiments
-        
-        df_exp = df_meta.query("name == @exp")
-
-        # split df_exp into a dic keyed by time (T0,T1,...). The values are dataframe df_exp
-        # with column time=T0,T1,...
-        list_t = sorted(pd.unique(df_exp['time']))
-        dic_time = {time : df_exp.loc[df_exp["time"] == time, :] for time in list_t}
-        
-
-        for idx_param, param in enumerate(params): # Loop on the parameter
-            dic_time_cp = {}
-
-            for time in combinations(list_t, combination_length): # Loop on time difference
-                if combination_length>1 :
-                    val = np.array(dic_time[time[1]][param].astype(float).tolist())
-                    ref = np.array(dic_time[time[0]][param].astype(float).tolist())
-                    delta = 100 * (val - ref) / ref
-                    dic_time_cp[time[1] + "-" + time[0]] = dic_time[time[1]].copy()
-                    dic_time_cp[time[1] + "-" + time[0]]["Delta_" + param] = delta
-                else:
-                    dic_time_cp[time[0]] = dic_time[time[0]].copy()
-                    dic_time_cp[time[0]]["Delta_" + param] = np.array(dic_time[time[0]][param].astype(float).tolist())
-
-            list_times_diff = sorted(dic_time_cp.keys())
-    
-            for idx_time, key in enumerate(list_times_diff):
-                for idx_power,x_y in enumerate(zip(dic_time_cp[key]["power"],
-                                                   dic_time_cp[key]["Delta_" + param])):
-                    ax[idx_param, idx_time].scatter(
-                            x_y[0],
-                            x_y[1],
-                            c=color[idx_power] ,
-                            marker=marker[idx_exp],
-                            label=exp+' '+str(x_y[0])
-                        )
-
-
-                ax[idx_param, idx_time].axhline(y=0, color="red", linestyle="--")
-                if idx_param == 0:
-                    ax[idx_param, idx_time].set_title(key)
-                ax[idx_param, idx_time].set_xlabel("Power ($W/{m^2}$)")
-                if idx_time == 0:
-                    if combination_length > 1:
-                        ax[idx_param, idx_time].set_ylabel("$\Delta$ " + param + " (%)")
-                    else:
-                        ax[idx_param, idx_time].set_ylabel(f'{param} ({pv.PARAM_UNIT_DIC[param]})')
-                ax[idx_param, idx_time].tick_params(axis="x", rotation=90)
-                ax[idx_param, idx_time].set_xticks(pow_list, minor=False)
-                ax[idx_param, idx_time].set_xticklabels(pow_list, fontsize=12)
-                ax[idx_param, idx_time].set_xlim([pow_min, pow_max])
-                ax[idx_param, idx_time].set_ylim(dic_ylim.get(param,[-3.2, 1.6]))
-                for axis in ["top", "bottom", "left", "right"]:
-                    ax[idx_param, idx_time].spines[axis].set_linewidth(2)
-                    
-    handles, labels = ax[0,0].get_legend_handles_labels()
-    fig.legend(handles, labels, loc='center right',bbox_to_anchor=(0.6,0, 0.5, 1))
-    #title = chr(9679) + " " + list_exp[0]
-    #if len(list_exp) ==2 : title = title + ', ' + chr(9660) + " " + list_exp[1]
-    #fig.suptitle(title, fontsize=13)
-    #fig.subplots_adjust(top=0.95 if len(params)>1 else 0.85)

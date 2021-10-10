@@ -7,5 +7,6 @@ from .PVcharacterization_GUI import *
 from .PVcharacterization import *
 from .PVcharacterization_global import *
 from .PVcharacterization_image import *
+from .PVcharacterization_plot import *
 
 

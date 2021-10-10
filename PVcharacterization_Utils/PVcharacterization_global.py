@@ -4,7 +4,7 @@ __all__ = ['DEFAULT_DIR',
            'DATA_BASE_TABLE_EXP',
            'USED_COLS',
            'PARAM_UNIT_DIC',
-           'MIN_MAX_PARAM']
+           ]
 
 # Standard library imports
 from pathlib import Path
@@ -32,9 +32,3 @@ USED_COLS = [
     "Ipm",
     "Fill Factor",
 ]
-MIN_MAX_PARAM = {"Rseries":[-30, 30],
-                 "Rshunt":[-30, 30],
-                 "Voc":[-3.2, 1.6],
-                 "Isc":[-3.2, 1.6],
-                  "Pmax":[-3.2, 1.6],
-                  "Fill Factor":[-3.2, 1.6]}
