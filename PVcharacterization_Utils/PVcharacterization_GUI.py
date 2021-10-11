@@ -126,24 +126,31 @@ def select_data_dir(root,title) :
     '''
    
     # Standard library imports
+    import os
     import tkinter as tk
     from tkinter import ttk
     from tkinter import filedialog
    
-    global in_dir
+    global in_dir, button
    
     win= tk.Tk()
     win.geometry(GEOMETRY_SELECT_DIR )
     win.title("Folder selection")
     
     def select_file():
-        global in_dir
+        global in_dir, button
+        button["state"] = "disabled"
         in_dir= filedialog.askdirectory(initialdir=str(root), title=title)
         tk.Label(win, text=in_dir, font=13).pack()
+        
    
     tk.Label(win, text=title+'\nthen close the window', font=('Aerial 18 bold')).pack(pady=20)
     button= ttk.Button(win, text="Select", command= select_file)
     button.pack(ipadx=5, pady=15)
+    if os.name == 'nt':
+        tk.Button(win,
+                  text="EXIT",
+                  command=win.destroy).pack(pady=3)
         
     win.mainloop()
     return in_dir
