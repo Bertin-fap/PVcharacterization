@@ -111,40 +111,40 @@ def select_files():
     
     return filenames
 
-
-
-def select_data_dir(root) :
-
+    
+def select_data_dir(root,title) :
+ 
     '''
     Selection of a folder
-    
+   
     Args:
-        root (Path): initial folder
-    
+        root (Path): initial folder.
+        title (str): title specifying which kind of folder to be selected.
     Returns:
-       (str): selected folder
-
+       (str): selected folder.
+ 
     '''
-    
+   
     # Standard library imports
     import tkinter as tk
     from tkinter import ttk
     from tkinter import filedialog
-    
+   
     global in_dir
-    
-    
+   
     win= tk.Tk()
     win.geometry(GEOMETRY_SELECT_DIR )
+    win.title("Folder selection")
+    
     def select_file():
         global in_dir
-        in_dir= filedialog.askdirectory(initialdir=str(root), title="Select in_dir folder")
+        in_dir= filedialog.askdirectory(initialdir=str(root), title=title)
         tk.Label(win, text=in_dir, font=13).pack()
-    
-    tk.Label(win, text="Click the Button to Select a Folder", font=('Aerial 18 bold')).pack(pady=20)
+   
+    tk.Label(win, text=title+'\nthen close the window', font=('Aerial 18 bold')).pack(pady=20)
     button= ttk.Button(win, text="Select", command= select_file)
     button.pack(ipadx=5, pady=15)
+        
     win.mainloop()
     return in_dir
-    
 

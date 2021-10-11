@@ -1,75 +1,10 @@
 __all_ =['plot_params']
 
-from .PVcharacterization_global import PARAM_UNIT_DIC
+from .PVcharacterization_global import (PARAM_UNIT_DIC,
+                                        TREATMENT_DEFAULT_LIST,)
 
-def construct_x_y(df_meta,module,treatment,param,diff):
-    
-    '''Construct for the module 'module', the parameter 'parameter' and the treatment 'treatment' the 
-    list of abscissa x and ordonates y where y(x) corresponds to:
-      to parameter_value(irradiance; module, treatment[0])
-      to 100*(parameter_value(irradiance; module, treatment[0]) - parameter_value(irradiance; module, treatment[1]))/
-                       parameter_value(irradiance; module, treatment[1])
-                       
-    Args:
-       df_meta (dataframe): dataframe descrided in plot_params
-       module (str): the module name
-       treatment (tuple) : (T<end>,T<deb>) for relative variation of the parameter between T<end> and T<deb>
-                           (T<i>,) for the parameter value for the treatment T<i>
-       param (str): the parameter
-       
-    Returns:
-       (x,y) 
-    '''
-    
-    
-    import numpy as np
-    
-    if not diff:
-        df_meta_cp = df_meta.query("name==@module & treatment==@treatment")
-        y = df_meta_cp[param].astype(float).tolist()
-        x = df_meta_cp['irradiance'].astype(float).tolist()
-    else:
-        df_meta_cp_end = df_meta.query("name==@module & treatment==@treatment[0] ")
-        df_meta_cp_deb = df_meta.query("name==@module & treatment==@treatment[1] ")
-        val = np.array(df_meta_cp_end[param].astype(float).tolist())
-        ref = np.array(df_meta_cp_deb[param].astype(float).tolist())
-        x = df_meta_cp_end['irradiance'].tolist() 
-        y = 100 * (val - ref) / ref
-        
-    return (x,y)
-    
-def set_ymin_ymax_param(df_meta,params, list_modules,list_trt_diff,diff):
-    
-    '''Build a dict keyed by the parameter and wich value is a list [ymin, ymax] 
-    '''
-    
-    min_max_param = {}
-    
-    for param in params: # Loop over the parameters
-        val = []
-        for  module in list_modules: # Loop on the modules
-            for trt in list_trt_diff: # Loop over the treatmentS
-                _,y = construct_x_y(df_meta,module,trt,param,diff)
-                val.extend(y)
-        min_max_param [param] =[ min(val),max(val)] 
-            
-    min_max_param = {param:[y[0] - (ecart := (y[1]-y[0]))/2,y[1] + ecart]
-                        for param,y in min_max_param.items()}
-   
-    return min_max_param
 
-def set_xmin_xmax(list_irr):
-    irr_add_nbr = 2
-    irr_add = irr_add_nbr * (max(list_irr) - min(list_irr))
-    irr_min, irr_max = (
-        min(list_irr) -  irr_add,
-        max(list_irr) +  irr_add,
-    )
-    
-    return (irr_min, irr_max)
-    
-
-def plot_params(params,list_modules, df_meta,list_diff = []):
+def plot_params(params,list_modules_type, df_meta,list_diff = [],dic_trt_meaning=None):
     
     '''Plots for different modules and for different parameters:
        - the relative  evolution (in %) of the parameters vs irradiance for treatment differences if diff=True
@@ -84,7 +19,7 @@ def plot_params(params,list_modules, df_meta,list_diff = []):
    
    Args:
        params (list of str): list of parameters to be plotted
-       list_modules (list of str): list of modules to be plotted
+       list_modules_type (list of str): list of modules type to be plotted
        df_meta (dataframe): dataframe organized as above
        list_diff (list of tuple): [(T1,T0),(T2,T0),...]
                                   if list_diff=[] the parameters evolution  vs irradiance are plotted.
@@ -109,7 +44,12 @@ def plot_params(params,list_modules, df_meta,list_diff = []):
     color = ['#0000A0','#1569C7','#78f89d','#FFEB3B','#E64A19'] # markers color
                                                                 #  different color per irradiance
     marker = ["o", "+", "s", "<", ">", "p"]                     # maker symbol
-                                                                #  different symbol per module
+                                                                #  different symbol per module type
+        
+    if dic_trt_meaning is None:
+        dic_trt_meaning = {trt:trt for trt in TREATMENT_DEFAULT_LIST}
+    
+        
         
     list_irr = sorted(pd.unique(df_meta['irradiance'])) # List of different irradiances
     list_trt = pd.unique(df_meta['treatment'])         # list of different treatmments
@@ -124,7 +64,7 @@ def plot_params(params,list_modules, df_meta,list_diff = []):
         dic_ax = {t:i for i,t in enumerate(list_trt)}
     
     #  Set y dynamic of the plots (enlarge the irradiance dynamic)
-    dic_ylim = set_ymin_ymax_param(df_meta,params, list_modules,list_trt_diff,diff)
+    dic_ylim = set_ymin_ymax_param(df_meta,params, list_modules_type,list_trt_diff,diff)
             
     #  Set x dynamic of the plots (enlarge the irradiance dynamic)
     (irr_min, irr_max) = set_xmin_xmax(list_irr)
@@ -145,23 +85,23 @@ def plot_params(params,list_modules, df_meta,list_diff = []):
         ax = ax.reshape((np.shape(ax)[0],1))
         
     # Loop over module, parameters, treatment/treatment differences and irradiance
-    for idx_module, module in enumerate(list_modules): # Loop on the modules
+    for idx_module, module_type in enumerate(list_modules_type): # Loop on the modules type
         for idx_param, param in enumerate(params): # Loop over the parameters
             for trt in list_trt_diff: # Loop over the treatmentS
                 idx_trt = dic_ax[trt]
-                x,y = construct_x_y(df_meta,module,trt,param,diff)
+                x,y = construct_x_y(df_meta,module_type,trt,param,diff)
                 for idx_irr,x_y in enumerate(zip(x,y)):
                     ax[idx_param, idx_trt].scatter(
                             x_y[0],
                             x_y[1],
                             c=color[idx_irr] ,
                             marker=marker[idx_module],
-                            label=module+' '+str(x_y[0]))
+                            label=module_type+' '+str(x_y[0]))
 
 
                 if diff: ax[idx_param, idx_trt].axhline(y=0, color="red", linestyle="--")
                 if idx_param == 0:
-                    title = f'{trt[0]} - {trt[1]}' if diff else trt
+                    title = f'{dic_trt_meaning[trt[0]]} - {dic_trt_meaning[trt[1]]}' if diff else dic_trt_meaning[trt]
                     ax[idx_param, idx_trt].set_title(title)
                 ax[idx_param, idx_trt].set_xlabel("Irradiance ($W/{m^2}$)")
                 if idx_trt == 0:
@@ -189,3 +129,68 @@ def plot_params(params,list_modules, df_meta,list_diff = []):
                bbox_transform=plt.gcf().transFigure,
      )
     
+def construct_x_y(df_meta,module_type,treatment,param,diff):
+    
+    '''Construct for the module type 'module_type', the parameter 'parameter' and the treatment 'treatment' the 
+    list of abscissa x and ordonates y where y(x) corresponds to:
+      to parameter_value(irradiance; module_type, treatment[0])
+      to 100*(parameter_value(irradiance; module_type, treatment[0]) - parameter_value(irradiance; module_type, treatment[1]))/
+                       parameter_value(irradiance; module_type, treatment[1])
+                       
+    Args:
+       df_meta (dataframe): dataframe descrided in plot_params
+       module_type (str): the module type
+       treatment (tuple) : (T<end>,T<deb>) for relative variation of the parameter between T<end> and T<deb>
+                           (T<i>,) for the parameter value for the treatment T<i>
+       param (str): the parameter
+       
+    Returns:
+       (x,y) 
+    '''
+    
+    
+    import numpy as np
+    
+    if not diff:
+        df_meta_cp = df_meta.query("module_type==@module_type & treatment==@treatment")
+        y = df_meta_cp[param].astype(float).tolist()
+        x = df_meta_cp['irradiance'].astype(float).tolist()
+    else:
+        df_meta_cp_end = df_meta.query("module_type==@module_type & treatment==@treatment[0] ")
+        df_meta_cp_deb = df_meta.query("module_type==@module_type & treatment==@treatment[1] ")
+        val = np.array(df_meta_cp_end[param].astype(float).tolist())
+        ref = np.array(df_meta_cp_deb[param].astype(float).tolist())
+        x = df_meta_cp_end['irradiance'].tolist() 
+        y = 100 * (val - ref) / ref
+        
+    return (x,y)
+    
+def set_ymin_ymax_param(df_meta,params, list_modules_type,list_trt_diff,diff):
+    
+    '''Build a dict keyed by the parameter and wich value is a list [ymin, ymax] 
+    '''
+    
+    min_max_param = {}
+    
+    for param in params: # Loop over the parameters
+        val = []
+        for  module_type in list_modules_type: # Loop on the modules type
+            for trt in list_trt_diff: # Loop over the treatmentS
+                _,y = construct_x_y(df_meta,module_type,trt,param,diff)
+                val.extend(y)
+        min_max_param [param] =[ min(val),max(val)] 
+            
+    min_max_param = {param:[y[0] - (ecart := (y[1]-y[0]))/2,y[1] + ecart]
+                        for param,y in min_max_param.items()}
+   
+    return min_max_param
+
+def set_xmin_xmax(list_irr):
+    irr_add_nbr = 2
+    irr_add = irr_add_nbr * (max(list_irr) - min(list_irr))
+    irr_min, irr_max = (
+        min(list_irr) -  irr_add,
+        max(list_irr) +  irr_add,
+    )
+    
+    return (irr_min, irr_max)

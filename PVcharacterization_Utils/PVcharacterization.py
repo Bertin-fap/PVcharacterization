@@ -8,14 +8,23 @@ __all__ = [
     "df2sqlite",
     "parse_filename",
     "sieve_files",
+    "build_files_database",
+    "build_metadata_dataframe",
+    "assess_path_folders",
 ]
 
 #Internal imports 
+
 from .PVcharacterization_global import (DEFAULT_DIR,
                                         DATA_BASE_NAME,
                                         DATA_BASE_TABLE,
+                                        DATA_BASE_TABLE_EXP,
                                         USED_COLS,
-                                        PARAM_UNIT_DIC)
+                                        PARAM_UNIT_DIC,
+                                        IRRADIANCE_DEFAULT_LIST,
+                                        TREATMENT_DEFAULT_LIST,)
+from .PVcharacterization_GUI import (select_data_dir,
+                                     Select_items,)
                                        
 def data_parsing(filepath, parse_all=True):
 
@@ -203,15 +212,15 @@ def parse_filename(file):
     from collections import namedtuple
     import re
 
-    FileNameInfo = namedtuple("FileNameInfo", "irradiance treatment name file_full_path")
+    FileNameInfo = namedtuple("FileNameInfo", "irradiance treatment module_type file_full_path")
     re_irradiance = re.compile(r"(?<=\_)\d{4}(?=W\_)")
     re_treatment = re.compile(r"(?<=\_)T\d{1}(?=\.)")
-    re_name = re.compile(r"[A-Z-\_]*\d{1,50}(?=\_)")
+    re_module_type = re.compile(r"[A-Z-\_]*\d{1,50}(?=\_)")
 
     FileInfo = FileNameInfo(
         irradiance=int(re.findall(re_irradiance, file)[0]),
         treatment=re.findall(re_treatment, file)[0],
-        name=re.findall(re_name, file)[0],
+        module_type=re.findall(re_module_type, file)[0],
         file_full_path=file,
     )
     return FileInfo
@@ -246,7 +255,7 @@ def df2sqlite(dataframe, file=None, tbl_name="import"):
     conn.close()
 
 
-def sieve_files(irradiance_select, treatment_select, name_select, database_path):
+def sieve_files(irradiance_select, treatment_select, module_type_select, database_path):
 
     """The sieve_files select 
     """
@@ -263,10 +272,10 @@ def sieve_files(irradiance_select, treatment_select, name_select, database_path)
     querry_d = Template(
         """SELECT file_full_path
                         FROM $table_name 
-                        WHERE name  IN $name_select
+                        WHERE module_type  IN $module_type_select
                         AND irradiance IN $irradiance_select
                         AND treatment IN $treatment_select
-                        ORDER BY name ASC
+                        ORDER BY module_type ASC
                         LIMIT 50"""
     )
 
@@ -274,7 +283,7 @@ def sieve_files(irradiance_select, treatment_select, name_select, database_path)
         querry_d.substitute(
             {
                 "table_name": DATA_BASE_TABLE,
-                "name_select": conv2str(name_select),
+                "module_type_select": conv2str(module_type_select),
                 "irradiance_select": conv2str(irradiance_select),
                 "treatment_select": conv2str(treatment_select),
             }
@@ -286,3 +295,111 @@ def sieve_files(irradiance_select, treatment_select, name_select, database_path)
     conn.close()
     return querry
 
+def assess_path_folders(path_root=None):
+    
+     # Standard library imports
+    from pathlib import Path
+    
+    if path_root is None:
+        root = Path.home()
+    else:
+        root = path_root
+
+    data_folder = select_data_dir(root,'Select the root folder')  # Selection of the root folder
+    
+    return data_folder
+
+def build_files_database(data_folder,verbose= True):
+    ''' 
+    Creation: 2021.09.12
+    Last update: 2021.10.10
+
+    User specific paths definition
+
+    '''
+
+    # Standard library imports
+    from collections import Counter
+    import os
+    from pathlib import Path
+
+    # 3rd party import
+    import pandas as pd
+
+
+    
+    datafiles_list = list(Path(data_folder).rglob("*.csv")) # Recursive collection all the .csv lies
+    
+    if not datafiles_list:
+        raise Exception(f"No .csv files detected in {data_folder} and sub folders")
+
+    list_files_descp = [parse_filename(str(file)) for file in datafiles_list]
+
+    file_check = True  # Check for the multi occurrences of a file
+    list_multi_file = []
+    for file,frequency in Counter([os.path.basename(x) for x in datafiles_list]).items(): # Check the the uniqueness of a file name
+        if frequency>1:
+            list_multi_file.append(file)
+            file_check = False
+    if not file_check:
+        raise Exception(f"The file(s) {' ,'.join(list_multi_file)} has(have) a number of occurrence greater than 1.\nPlease correct before proceeding")
+
+
+    df_files_descp  = pd.DataFrame(list_files_descp) # Build the database
+
+    database_path = Path(data_folder) / Path(DATA_BASE_NAME)
+
+    df2sqlite(df_files_descp, file=database_path, tbl_name=DATA_BASE_TABLE)
+    
+    if verbose:
+        print(f'{len(datafiles_list)} files was detected.\ndf_files_descp and the data base table {DATA_BASE_TABLE} in {database_path} are built')
+    
+    return df_files_descp
+
+def build_metadata_dataframe(df_files_descp,data_folder):
+    
+    # Standard library imports
+    import os
+    from pathlib import Path
+
+    #3rd party imports
+    import pandas as pd
+
+
+    list_modules_type = df_files_descp['module_type'].unique()
+    mod_selected = Select_items(list_modules_type,'Select the modules type',mode = 'multiple') 
+    
+    database_path = Path(data_folder) / Path(DATA_BASE_NAME)
+    
+    querries = sieve_files(IRRADIANCE_DEFAULT_LIST ,TREATMENT_DEFAULT_LIST,mod_selected,database_path)
+    list_files_name = [os.path.splitext(os.path.basename(x))[0] for x in querries]
+    list_files_name.sort()
+
+    df_files_descp_copy = df_files_descp
+
+    df_files_descp_copy.index = [os.path.basename(x).split('.')[0] for x in df_files_descp_copy['file_full_path'].tolist()]
+    df_files_descp_copy = df_files_descp_copy.loc[:,['irradiance','treatment','module_type'] ]
+
+    res = [data_parsing(querry,parse_all=False).meta_data for querry in querries]
+    df_meta = pd.DataFrame.from_dict(res)
+    df_meta.index = df_meta['ID']
+    list_df_meta_index = list(df_meta.index)
+    list_df_meta_index .sort()
+
+    flag_name = True    # Check the file integrity
+    list_error_name = []
+    for  name in zip(list_files_name ,list_df_meta_index):
+        if name[0] != name[1]:
+            list_error_name.append(name[0])
+            flag_name = False
+        if not flag_name:
+            raise Exception(f"An issue with IDs has been detected with file(s) {' ,'.join(list_error_name)}.\n Please correct before proceeding")
+      
+
+    df_meta = df_meta.loc[:,USED_COLS] # keep only USED_COLS defined in PVcharacterization_GUI.py
+
+    df_meta = pd.merge(df_meta,df_files_descp_copy,left_index=True, right_index=True) # add column
+
+    df2sqlite(df_meta, file=database_path, tbl_name=DATA_BASE_TABLE_EXP) # For future uses.
+    
+    return df_meta
