@@ -1,7 +1,13 @@
-__all_ =['plot_params']
+__all_ =['plot_params','init_plot_diff','plot_params_diff','construct_x_y']
 
 from .PVcharacterization_global import (PARAM_UNIT_DIC,
-                                        TREATMENT_DEFAULT_LIST,)
+                                        TREATMENT_DEFAULT_LIST,
+                                        USED_COLS,
+                                        DATA_BASE_NAME,
+                                        PARAM_UNIT_DIC,)
+from .PVcharacterization_GUI import select_items
+from .PVcharacterization_flashtest import (sieve_files,
+                                 read_flashtest_file)
 
 
 def plot_params(params,list_modules_type, df_meta,list_diff = [],dic_trt_meaning=None):
@@ -143,6 +149,8 @@ def construct_x_y(df_meta,module_type,treatment,param,diff):
        treatment (tuple) : (T<end>,T<deb>) for relative variation of the parameter between T<end> and T<deb>
                            (T<i>,) for the parameter value for the treatment T<i>
        param (str): the parameter
+       diff (bool): TRUE we work with parameter differences
+                    FALSE we work with parameters
        
     Returns:
        (x,y) 
@@ -153,13 +161,13 @@ def construct_x_y(df_meta,module_type,treatment,param,diff):
     
     if not diff:
         df_meta_cp = df_meta.query("module_type==@module_type & treatment==@treatment")
-        y = df_meta_cp[param].astype(float).tolist()
+        y = df_meta_cp[param].tolist()
         x = df_meta_cp['irradiance'].astype(float).tolist()
     else:
         df_meta_cp_end = df_meta.query("module_type==@module_type & treatment==@treatment[0] ")
         df_meta_cp_deb = df_meta.query("module_type==@module_type & treatment==@treatment[1] ")
-        val = np.array(df_meta_cp_end[param].astype(float).tolist())
-        ref = np.array(df_meta_cp_deb[param].astype(float).tolist())
+        val = np.array(df_meta_cp_end[param].tolist())
+        ref = np.array(df_meta_cp_deb[param].tolist())
         x = df_meta_cp_end['irradiance'].tolist() 
         y = 100 * (val - ref) / ref
         
@@ -167,7 +175,7 @@ def construct_x_y(df_meta,module_type,treatment,param,diff):
     
 def set_ymin_ymax_param(df_meta,params, list_modules_type,list_trt_diff,diff):
     
-    '''Build a dict keyed by the parameter and wich value is a list [ymin, ymax] 
+    '''Build a dict keyed by the parameters and wich values are list [ymin, ymax] 
     '''
     
     min_max_param = {}
@@ -194,3 +202,93 @@ def set_xmin_xmax(list_irr):
     )
     
     return (irr_min, irr_max)
+
+def init_plot_diff(df_meta):
+    
+    '''Interactivelly builds a list of tuples [(T<i>,T<j>),...] where i>j and T<i> is the ieme treatment.
+    
+    Args:
+       df_meta (dataframe): the dataframe containing the experimental values.
+       
+    Returns:
+       A list of tuples
+    '''
+    
+    # Standard library imports
+    from itertools import combinations
+
+    #3rd party imports
+    import pandas as pd
+
+    mod_selected = df_meta['module_type'].unique()
+    if len(mod_selected)>2: raise Exception("Sorry, the number of modules must be <=2 ") 
+    list_setup = []
+    name =[]
+    if len(mod_selected)==2:
+        for x in df_meta[['module_type','treatment','irradiance']].groupby('module_type'):
+            name.append(x[0] )
+            list_setup.append(set(zip(x[1]['treatment'].tolist(), x[1]['irradiance'].tolist())))
+        if list_setup[1] - list_setup[0]:
+            raise Exception(f'Cannot compare {name[0] } and {name[1]}')
+
+    list_treatments = pd.unique(df_meta['treatment'])
+
+    if len(list_treatments)==1: raise Exception("Sorry, the number of treatments must be >1 ") 
+
+    list_combinations = list(combinations(list_treatments,2))
+
+    list_diff = select_items(list_combinations,
+                                'Select the difference',
+                                mode = 'multiple')
+    list_diff = [(x[1],x[0]) for x in list_diff]
+
+    return list_diff
+
+def plot_params_diff(df_meta,list_diff, list_params=None,dic_trt_meaning=None):
+    
+    
+    #3rd party imports
+    import pandas as pd
+
+    list_allowed_params = list(USED_COLS)
+    list_allowed_params.remove('Title')
+    if list_params is None:
+        list_params = select_items(list_allowed_params,
+                                      'Select the params',
+                                       mode = 'multiple')
+    else:
+        params_copy = list(list_params)
+        unkown_params = set(params_copy).difference(set( list_allowed_params))
+        for unknow_param in unkown_params:
+            print(f'WARNING parameter {unknow_param} will be ignored')
+            list_params.remove(unknow_param)
+
+    list_modules = pd.unique(df_meta['module_type'])          # List of modules name (ID)
+    plot_params(list_params,
+                list_modules,
+                df_meta,list_diff = list_diff,
+                dic_trt_meaning=dic_trt_meaning) #None
+    
+def plot_iv_curves(irr_select,name_select,trt_select,data_folder):
+
+    # Standard library imports
+    import os
+    from pathlib import Path
+
+    # 3rd party import
+    import matplotlib.pyplot as plt
+
+
+    database_path = Path(data_folder) / Path(DATA_BASE_NAME)
+
+    querries = sieve_files(irr_select,trt_select,name_select,database_path)
+
+    for i, res in enumerate([read_flashtest_file(querry).IV0 for querry in querries]):
+        plt.plot(res['Voltage'],res['Current'],label=trt_select[i])
+        plt.scatter(res['Voltage'][::50],res['Current'][::50],s=10)
+        plt.xlabel(res.columns[0] +'[V]')
+        plt.ylabel(res.columns[1] +'[A]')
+        plt.title(f'Irradiance: {str(irr_select[0])} {PARAM_UNIT_DIC["IrrCorr"]}')
+
+    plt.legend()
+    plt.show()

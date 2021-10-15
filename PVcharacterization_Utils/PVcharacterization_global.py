@@ -1,6 +1,6 @@
 __all__ = ['DEFAULT_DIR',
            'DATA_BASE_NAME',
-           'DATA_BASE_TABLE',
+           'DATA_BASE_TABLE_FILE',
            'DATA_BASE_TABLE_EXP',
            'USED_COLS',
            'PARAM_UNIT_DIC',
@@ -20,7 +20,7 @@ PARAM_UNIT_DIC = {
 }
 DEFAULT_DIR = Path.home()
 DATA_BASE_NAME = "pv.db"
-DATA_BASE_TABLE = "PV_descp"
+DATA_BASE_TABLE_FILE = "PV_descp"
 DATA_BASE_TABLE_EXP = "exp_values"
 USED_COLS = [
     "Title",

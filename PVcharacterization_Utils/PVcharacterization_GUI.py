@@ -1,15 +1,18 @@
-__all__ = ['Select_items','select_files','select_data_dir']
+__all__ = ['select_items',
+           'select_files',
+           'select_data_dir',
+           'input_treatment_labels']
 
 # Global variables used by Select_multi_items function
 from .PVcharacterization_global import (DEFAULT_DIR,
                                        DATA_BASE_NAME,
-		                               DATA_BASE_TABLE,
-		                               USED_COLS,
-		                               PARAM_UNIT_DIC)
+                                       DATA_BASE_TABLE_FILE,
+                                       USED_COLS,
+                                       PARAM_UNIT_DIC)
 GEOMETRY_ITEMS_SELECTION = '500x580+50+50'    # Size of the tkinter window
 GEOMETRY_SELECT_DIR = "750x250"
 
-def Select_items(list_item,title,mode = 'multiple'): 
+def select_items(list_item,title,mode = 'multiple'): 
 
     """interactive selection of items among the list list-item
     
@@ -154,4 +157,68 @@ def select_data_dir(root,title) :
         
     win.mainloop()
     return in_dir
+
+def input_treatment_labels(list_diff): 
+    
+    '''Interactive choice of the treatment name.
+    
+    Args:
+       list_diff (list of tuples): [(T1,T0),(T2,T0),...] where T<i> are the label of the <ieme> treatment
+       
+    Returns:
+       A dict={T0:name of treatment T0, T1:name of the treatment T1,...}
+    '''
+    
+    import tkinter as tk
+    global dict_label, list_trt
+    
+    list_trt = []
+    for trt in list_diff:
+       list_trt.extend([trt[0],trt[1]])
+    list_trt = list(set(list_trt))
+    list_trt.sort()
+    n_items = len(list_trt)
+    
+    root = tk.Tk()
+    root.title("Python - Basic Register Form")
+    
+    FONT = ('arial', 18)
+    FONT1 = ('arial', 20)
+
+    width = 640
+    height = 480
+    screen_width = root.winfo_screenwidth()
+    screen_height = root.winfo_screenheight()
+    x = (screen_width/2) - (width/2)
+    y = (screen_height/2) - (height/2)
+    root.geometry("%dx%d+%d+%d" % (width, height, x, y))
+    root.resizable(0, 0)
+
+    def Register():
+        global dict_label,list_trt
+        dict_label = {list_trt[idx] : str(list_t[idx].get()) for idx in range(len(list_t))}
+
+    TitleFrame = tk.Frame(root, height=100, width=640, bd=1, relief=tk.SOLID)
+    TitleFrame.pack(side=tk.TOP)
+    RegisterFrame = tk.Frame(root)
+    RegisterFrame.pack(side=tk.TOP, pady=20)
+
+    lbl_title = tk.Label(TitleFrame, text="PVcharacterization treatment labels", font=FONT, bd=1, width=640)
+    lbl_title.pack()
+    list_t = ['']*n_items
+    for idx, trt in enumerate(list_trt):
+        list_t[idx] =  tk.StringVar()
+        tk.Label(RegisterFrame, text= trt, font=FONT, bd=18).grid(row=1+idx)
+        tk.Entry(RegisterFrame, font=FONT1, textvariable=list_t[idx], width=15).grid(row=1+idx, column=1)
+    lbl_result = tk.Label(RegisterFrame, text="", font=FONT).grid(row=n_items+1, columnspan=2)
+    
+
+    btn_register = tk.Button(RegisterFrame, font=FONT1, text="Register", command=Register)
+    btn_register.grid(row=n_items+2, columnspan=2)
+    btn_exit = tk.Button(RegisterFrame, font=FONT1, text="EXIT", command=root.destroy)
+    btn_exit.grid(row=n_items+3, columnspan=2)
+
+
+    root.mainloop()
+    return dict_label
 

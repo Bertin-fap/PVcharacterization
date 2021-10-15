@@ -4,32 +4,33 @@
     Useful functions for correctly parsing the aging data files
 """
 __all__ = [
-    "data_parsing",
+    "read_flashtest_file",
     "df2sqlite",
     "parse_filename",
     "sieve_files",
     "build_files_database",
     "build_metadata_dataframe",
     "assess_path_folders",
+    "pv_flashtest_pca",
 ]
 
 #Internal imports 
 
 from .PVcharacterization_global import (DEFAULT_DIR,
                                         DATA_BASE_NAME,
-                                        DATA_BASE_TABLE,
+                                        DATA_BASE_TABLE_FILE,
                                         DATA_BASE_TABLE_EXP,
                                         USED_COLS,
                                         PARAM_UNIT_DIC,
                                         IRRADIANCE_DEFAULT_LIST,
                                         TREATMENT_DEFAULT_LIST,)
 from .PVcharacterization_GUI import (select_data_dir,
-                                     Select_items,)
+                                     select_items,)
                                        
-def data_parsing(filepath, parse_all=True):
+def read_flashtest_file(filepath, parse_all=True):
 
     """
-    The function `data_parsing` reads a csv file organized as follow:
+    The function `read_flashtest_file` reads a csv file organized as follow:
     
                 ==========  =================================
                 Title:       HET JNHM72 6x12 M2 0200W
@@ -123,11 +124,12 @@ def data_parsing(filepath, parse_all=True):
     )
 
     df_data = pd.read_csv(filepath, sep=",", skiprows=0, header=None)
-
+    
+    # Builds the list (ndarray) of the index of the beginnig of the data blocks (I/V and Ref cell) 
     index_data_header = np.where(
         df_data.iloc[:, 0].str.contains(
             "^ Volt|Ref Cell",  # Find the indice of the
-            case=True,  # headers of th IV and
+            case=True,          # headers of the IV curve
             regex=True,
         )
     )[
@@ -135,15 +137,21 @@ def data_parsing(filepath, parse_all=True):
     ]  # Ref Cell data
 
     index_data_header = np.insert(
-        index_data_header,  # Insersion of index 0 and the index of th
-        [0, len(index_data_header)],  # last numerical value
-        [0, len(df_data) - 3],
+        index_data_header,            
+        [0, len(index_data_header)],  # add index 0 for the beginning of the header
+        [0, len(df_data) - 3],        # add index of the last numerical value
     )
-
-    meta_data = df_data.iloc[np.r_[index_data_header[0] : index_data_header[1]]]
-    meta_data = dict(zip(meta_data[0], meta_data[1]))
-    meta_data = {key.split(":")[0]: val for key, val in meta_data.items()}
-
+    
+    # Builds the meta data dict meta_data {label:value}
+    meta_data = {}
+    meta_data_df = df_data.iloc[np.r_[index_data_header[0] : index_data_header[1]]] 
+    for key,val in dict(zip(meta_data_df[0], meta_data_df[1])).items():
+        try:
+            meta_data[key.split(":")[0]] = float(val)
+        except:
+            meta_data[key.split(":")[0]] = val
+    
+    # Extract I/V curves and Ref_cell curves
     if not parse_all:
         data = data_struct(
             meta_data=meta_data,
@@ -182,7 +190,6 @@ def data_parsing(filepath, parse_all=True):
         Ref_Cell2=list_df[0],
     )
     return data
-
 
 def parse_filename(file):
 
@@ -282,7 +289,7 @@ def sieve_files(irradiance_select, treatment_select, module_type_select, databas
     cur.execute(
         querry_d.substitute(
             {
-                "table_name": DATA_BASE_TABLE,
+                "table_name": DATA_BASE_TABLE_FILE,
                 "module_type_select": conv2str(module_type_select),
                 "irradiance_select": conv2str(irradiance_select),
                 "treatment_select": conv2str(treatment_select),
@@ -349,10 +356,10 @@ def build_files_database(data_folder,verbose= True):
 
     database_path = Path(data_folder) / Path(DATA_BASE_NAME)
 
-    df2sqlite(df_files_descp, file=database_path, tbl_name=DATA_BASE_TABLE)
+    df2sqlite(df_files_descp, file=database_path, tbl_name=DATA_BASE_TABLE_FILE)
     
     if verbose:
-        print(f'{len(datafiles_list)} files was detected.\ndf_files_descp and the data base table {DATA_BASE_TABLE} in {database_path} are built')
+        print(f'{len(datafiles_list)} files was detected.\ndf_files_descp and the data base table {DATA_BASE_TABLE_FILE} in {database_path} are built')
     
     return df_files_descp
 
@@ -367,7 +374,7 @@ def build_metadata_dataframe(df_files_descp,data_folder):
 
 
     list_modules_type = df_files_descp['module_type'].unique()
-    mod_selected = Select_items(list_modules_type,'Select the modules type',mode = 'multiple') 
+    mod_selected = select_items(list_modules_type,'Select the modules type',mode = 'multiple') 
     
     database_path = Path(data_folder) / Path(DATA_BASE_NAME)
     
@@ -380,7 +387,7 @@ def build_metadata_dataframe(df_files_descp,data_folder):
     df_files_descp_copy.index = [os.path.basename(x).split('.')[0] for x in df_files_descp_copy['file_full_path'].tolist()]
     df_files_descp_copy = df_files_descp_copy.loc[:,['irradiance','treatment','module_type'] ]
 
-    res = [data_parsing(querry,parse_all=False).meta_data for querry in querries]
+    res = [read_flashtest_file(querry,parse_all=False).meta_data for querry in querries]
     df_meta = pd.DataFrame.from_dict(res)
     df_meta.index = df_meta['ID']
     list_df_meta_index = list(df_meta.index)
@@ -403,3 +410,41 @@ def build_metadata_dataframe(df_files_descp,data_folder):
     df2sqlite(df_meta, file=database_path, tbl_name=DATA_BASE_TABLE_EXP) # For future uses.
     
     return df_meta
+
+def pv_flashtest_pca(df_meta):
+
+    # 3rd party imports
+    import matplotlib.pyplot as plt
+    import numpy as np
+    
+    list_params = list(USED_COLS)
+    list_params.remove("Title")
+    X = df_meta[list_params].to_numpy()
+    X=X-X.mean(axis=0)
+    X=X/np.std(X, axis=0)
+
+
+    Cor=np.dot(X.T,X) # Build a square symetric correlation matrix
+
+    lbd,Eigen_vec=np.linalg.eig(Cor) # Compute the eigenvalues and eigenvectors
+
+    # sort by decreasing value of eigenvalues
+    w=sorted(list(zip(lbd,Eigen_vec.T)), key=lambda tup: tup[0],reverse=True)
+    vp=np.array([x[0] for x in w ])
+    L=np.array([x[1] for x in w]).reshape(np.shape(Eigen_vec)).T
+
+    F=np.real(np.matmul(X,L))
+    Eigen_vec=np.real(Eigen_vec)
+
+    # plot the results
+    labels=['PC'+str(x) for x in range(1,len(vp)+1)]
+
+    plt.figure()
+    plt.bar(x=range(1,len(lbd)+1), height=np.cumsum(100*vp/sum(vp)), tick_label=labels)
+
+    plt.figure()
+    plt.scatter(-F[:,0],F[:,1])
+    plt.title('PCA Graph')
+    plt.xlabel('PC1 _ {0}%'.format(np.rint(100*vp[0]/sum(vp) )))
+    plt.ylabel('PC2 _ {0}%'.format(np.rint(100*vp[1]/sum(vp)) ))
+
