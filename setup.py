@@ -31,9 +31,10 @@ setup(name='PVcharacterization_Utils',
       install_requires = ['pandas',
                           'numpy',
                           'scipy',
-                          'scikit-image'],
+                          'scikit-image',
+                          'seaborn'],
       author= 'PV_team',
-      author_email= 'francois.bertin7@wanadoo.fr
+      author_email= 'francois.bertin7@wanadoo.fr',
       url= 'https://github.com/Bertin-fap/image_feature_extract_example',
       packages=find_packages(),
       )

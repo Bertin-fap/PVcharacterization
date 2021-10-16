@@ -283,7 +283,7 @@ def sieve_files(irradiance_select, treatment_select, module_type_select, databas
                         AND irradiance IN $irradiance_select
                         AND treatment IN $treatment_select
                         ORDER BY module_type ASC
-                        LIMIT 50"""
+                        """
     )
 
     cur.execute(
@@ -412,39 +412,75 @@ def build_metadata_dataframe(df_files_descp,data_folder):
     return df_meta
 
 def pv_flashtest_pca(df_meta):
+    
+    '''PCA analysis of the data 
+    '''
 
     # 3rd party imports
     import matplotlib.pyplot as plt
     import numpy as np
+    import pandas as pd
+    import seaborn as sns
     
-    list_params = list(USED_COLS)
-    list_params.remove("Title")
+    scree_plot = False
+    
+    list_params = USED_COLS.copy()
+    list_params.remove('Title')
     X = df_meta[list_params].to_numpy()
-    X=X-X.mean(axis=0)
-    X=X/np.std(X, axis=0)
+    X = X-X.mean(axis=0)
+    X = X/np.std(X, axis=0)
 
 
-    Cor=np.dot(X.T,X) # Build a square symetric correlation matrix
+    Cor = np.dot(X.T,X) # Build a square symetric correlation matrix
 
-    lbd,Eigen_vec=np.linalg.eig(Cor) # Compute the eigenvalues and eigenvectors
+    lbd,Eigen_vec = np.linalg.eig(Cor) # Compute the eigenvalues and eigenvectors
 
-    # sort by decreasing value of eigenvalues
-    w=sorted(list(zip(lbd,Eigen_vec.T)), key=lambda tup: tup[0],reverse=True)
-    vp=np.array([x[0] for x in w ])
-    L=np.array([x[1] for x in w]).reshape(np.shape(Eigen_vec)).T
+    # Sort by decreasing value of eigenvalues.
+    w = sorted(list(zip(lbd,Eigen_vec.T)), key=lambda tup: tup[0],reverse=True)
+    vp = np.array([x[0] for x in w ])
+    L = np.array([x[1] for x in w]).reshape(np.shape(Eigen_vec)).T
 
     F=np.real(np.matmul(X,L))
     Eigen_vec=np.real(Eigen_vec)
+    x = -F[:,0]
+    y = F[:,1]
 
-    # plot the results
-    labels=['PC'+str(x) for x in range(1,len(vp)+1)]
+    # Plot the scree plot.
+    if scree_plot:
+        labels=['PC'+str(x) for x in range(1,len(vp)+1)]
 
-    plt.figure()
-    plt.bar(x=range(1,len(lbd)+1), height=np.cumsum(100*vp/sum(vp)), tick_label=labels)
+        plt.figure()
+        plt.bar(x=range(1,len(lbd)+1), height=np.cumsum(100*vp/sum(vp)), tick_label=labels)
+    
+    
+    # Plot the PCA
+    df_meta_pca = df_meta[['irradiance','treatment','module_type']].copy()
+    dict_module_type = {"module_type": {x:i for i,x in enumerate(df_meta_pca['module_type'].unique())}}
+    df_meta_pca.replace(dict_module_type,inplace=True)
+    label = df_meta_pca["module_type"]
+    df_meta_pca['x'] = x
+    df_meta_pca['y'] = y
+    fig, ax = plt.subplots(figsize=(10,10))
+    p = sns.scatterplot(data=df_meta_pca,
+                        x='x',
+                        y='y',
+                        hue='irradiance',
+                        style='treatment', palette='tab10', ax=ax, s=50)
 
-    plt.figure()
-    plt.scatter(-F[:,0],F[:,1])
-    plt.title('PCA Graph')
+    for lbl,xp,yp in zip(label,x,y):
+            plt.annotate(str(lbl),(xp+0.05,yp+0.05))
+            
+
+            
+    nl = '\n'      
+    list_mod = [f'{value} : {key}' for key,value in dict_module_type['module_type'].items()]
+    n_blanc = (3-len(list_mod)%3) if (3-len(list_mod)%3) else 0 # Pads list_mod with '' such that 
+    list_mod = list_mod + ['']*n_blanc # Pads list_mod with '' such that the length of list_mod is a multiple of 3
+    list_mod = [', '.join(y) for y in list(zip(list_mod[0::3],list_mod[1::3],list_mod[2::3]))]
+    text = f"Module names are:{nl}{nl.join(list_mod)}"
+    plt.title(text)
     plt.xlabel('PC1 _ {0}%'.format(np.rint(100*vp[0]/sum(vp) )))
     plt.ylabel('PC2 _ {0}%'.format(np.rint(100*vp[1]/sum(vp)) ))
-
+    _ = p.legend(bbox_to_anchor=(1, 1.02), loc='upper left')
+        
+    return
