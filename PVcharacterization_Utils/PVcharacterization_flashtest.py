@@ -20,7 +20,7 @@ from .PVcharacterization_global import (DEFAULT_DIR,
                                         DATA_BASE_NAME,
                                         DATA_BASE_TABLE_FILE,
                                         DATA_BASE_TABLE_EXP,
-                                        USED_COLS,
+                                        COL_NAMES,
                                         PARAM_UNIT_DIC,
                                         IRRADIANCE_DEFAULT_LIST,
                                         TREATMENT_DEFAULT_LIST,)
@@ -264,7 +264,20 @@ def df2sqlite(dataframe, file=None, tbl_name="import"):
 
 def sieve_files(irradiance_select, treatment_select, module_type_select, database_path):
 
-    """The sieve_files select 
+    """The sieve_files select the file witch names satisfy the foolowing querry:
+         - the irradiance (200,400,...) must be part of the irradiance_select list
+         - the treatment (T0, T1, T2,...) must be part of the treatment_select list
+         - the module type (JINERGY, QCELLS, BOREALIS,...) must be part of the module_type_select list
+         
+        Args:
+           irradiance_select (list of int): list of irradiances to be selected
+           treatment_select (list of str): list of treatments to be selected
+           module_type_select (list of str): list of modules to be selected
+           database_path (path): full path of the data base
+           
+        Return:
+          List of the full path of the selected files.
+        
     """
     # Standard library imports
     import sqlite3
@@ -318,10 +331,8 @@ def assess_path_folders(path_root=None):
 
 def build_files_database(data_folder,verbose= True):
     ''' 
-    Creation: 2021.09.12
-    Last update: 2021.10.10
-
-    User specific paths definition
+    Build the table DATA_BASE_TABLE_FILE in the data base DATA_BASE_NAME with the following fields
+    irradiance, treatment, module_type, file_full_path
 
     '''
 
@@ -364,6 +375,9 @@ def build_files_database(data_folder,verbose= True):
     return df_files_descp
 
 def build_metadata_dataframe(df_files_descp,data_folder):
+
+    '''Building of the dataframe df_meta.
+    '''
     
     # Standard library imports
     import os
@@ -372,59 +386,58 @@ def build_metadata_dataframe(df_files_descp,data_folder):
     #3rd party imports
     import pandas as pd
 
-
+    # Interactive selection of the modules
     list_modules_type = df_files_descp['module_type'].unique()
     mod_selected = select_items(list_modules_type,'Select the modules type',mode = 'multiple') 
     
+    # Extract from the file database all the filenames related to the selected modules
     database_path = Path(data_folder) / Path(DATA_BASE_NAME)
-    
-    querries = sieve_files(IRRADIANCE_DEFAULT_LIST ,TREATMENT_DEFAULT_LIST,mod_selected,database_path)
-    list_files_name = [os.path.splitext(os.path.basename(x))[0] for x in querries]
+    list_files = sieve_files(IRRADIANCE_DEFAULT_LIST ,TREATMENT_DEFAULT_LIST,mod_selected,database_path)
+    list_files_name = [os.path.splitext(os.path.basename(x))[0] for x in list_files]
     list_files_name.sort()
 
+    # Extraction from the dataframe df_files_descp a sub dataframe related to the selected modules 
     df_files_descp_copy = df_files_descp
-
     df_files_descp_copy.index = [os.path.basename(x).split('.')[0] for x in df_files_descp_copy['file_full_path'].tolist()]
-    df_files_descp_copy = df_files_descp_copy.loc[:,['irradiance','treatment','module_type'] ]
+    df_files_descp_copy = df_files_descp_copy.loc[list_files_name,['irradiance','treatment','module_type'] ]
+    
+    # Building of the dataframe df_meta out of the flashtest files metadata 
+    list_dict_metadata = [read_flashtest_file(file,parse_all=False).meta_data for file in list_files]
+    df_meta = pd.DataFrame.from_dict(list_dict_metadata)
+    df_meta.index = list_files_name #df_meta['ID']
+    df_meta = df_meta.loc[:,COL_NAMES] # keep only COL_NAMES defined in PVcharacterization_GUI.py
+    
+    # Merges df_meta and df_files_descp_copy to add the tree columns: irradiance, treatment, module_type
+    df_meta = pd.merge(df_meta,df_files_descp_copy,left_index=True, right_index=True)
 
-    res = [read_flashtest_file(querry,parse_all=False).meta_data for querry in querries]
-    df_meta = pd.DataFrame.from_dict(res)
-    df_meta.index = df_meta['ID']
-    list_df_meta_index = list(df_meta.index)
-    list_df_meta_index .sort()
-
-    flag_name = True    # Check the file integrity
-    list_error_name = []
-    for  name in zip(list_files_name ,list_df_meta_index):
-        if name[0] != name[1]:
-            list_error_name.append(name[0])
-            flag_name = False
-        if not flag_name:
-            raise Exception(f"An issue with IDs has been detected with file(s) {' ,'.join(list_error_name)}.\n Please correct before proceeding")
-      
-
-    df_meta = df_meta.loc[:,USED_COLS] # keep only USED_COLS defined in PVcharacterization_GUI.py
-
-    df_meta = pd.merge(df_meta,df_files_descp_copy,left_index=True, right_index=True) # add column
-
-    df2sqlite(df_meta, file=database_path, tbl_name=DATA_BASE_TABLE_EXP) # For future uses.
+    # Builds a database for future uses
+    df2sqlite(df_meta, file=database_path, tbl_name=DATA_BASE_TABLE_EXP)
     
     return df_meta
 
-def pv_flashtest_pca(df_meta):
+def pv_flashtest_pca(df_meta,scree_plot = False,interactive_plot=False):
     
-    '''PCA analysis of the data 
+    '''PCA analysis of the flashtest data. The features are the parameters defined in the global COL_NAMES and the data vectors the
+    rows of the dataframe df_data.
     '''
 
     # 3rd party imports
     import matplotlib.pyplot as plt
     import numpy as np
     import pandas as pd
+    import plotly.express as px
     import seaborn as sns
     
-    scree_plot = False
+    def title(M_items_per_row = 3 ):
+        '''Builds th PCA plot title out of the dict dict_module_type with M_items_per_row module type name
+        per row'''    
+        nl = '\n'      
+        list_mod = [f'{value} : {key}' for key,value in dict_module_type['module_type'].items()]
+        list_mod = [', '.join( list_mod[idx:idx+M_items_per_row]) for idx in range(0,len(list_mod),M_items_per_row)]
+        text = f"Module names are:{nl}{nl.join(list_mod)}"
+        return text
     
-    list_params = USED_COLS.copy()
+    list_params = COL_NAMES.copy()
     list_params.remove('Title')
     X = df_meta[list_params].to_numpy()
     X = X-X.mean(axis=0)
@@ -440,12 +453,14 @@ def pv_flashtest_pca(df_meta):
     vp = np.array([x[0] for x in w ])
     L = np.array([x[1] for x in w]).reshape(np.shape(Eigen_vec)).T
 
-    F=np.real(np.matmul(X,L))
-    Eigen_vec=np.real(Eigen_vec)
+    F = np.real(np.matmul(X,L))
+ 
     x = -F[:,0]
     y = F[:,1]
 
-    # Plot the scree plot.
+
+    
+    # Conditional plot the scree plot.
     if scree_plot:
         labels=['PC'+str(x) for x in range(1,len(vp)+1)]
 
@@ -454,33 +469,40 @@ def pv_flashtest_pca(df_meta):
     
     
     # Plot the PCA
+    # Builds the df_meta_pca dataframe
     df_meta_pca = df_meta[['irradiance','treatment','module_type']].copy()
-    dict_module_type = {"module_type": {x:i for i,x in enumerate(df_meta_pca['module_type'].unique())}}
-    df_meta_pca.replace(dict_module_type,inplace=True)
-    label = df_meta_pca["module_type"]
     df_meta_pca['x'] = x
     df_meta_pca['y'] = y
-    fig, ax = plt.subplots(figsize=(10,10))
-    p = sns.scatterplot(data=df_meta_pca,
-                        x='x',
-                        y='y',
-                        hue='irradiance',
-                        style='treatment', palette='tab10', ax=ax, s=50)
+    
+    if not interactive_plot:
+        dict_module_type = {"module_type": {x:i for i,x in enumerate(df_meta_pca['module_type'].unique())}}
+        df_meta_pca.replace(dict_module_type,inplace=True)
+        label = df_meta_pca["module_type"]
+        fig, ax = plt.subplots(figsize=(10,10))
+        p = sns.scatterplot(data=df_meta_pca,
+                            x='x',
+                            y='y',
+                            hue='irradiance',
+                            style='treatment', palette='tab10', ax=ax, s=50)
 
-    for lbl,xp,yp in zip(label,x,y):
-            plt.annotate(str(lbl),(xp+0.05,yp+0.05))
-            
+        for lbl,xp,yp in zip(label,x,y):
+                plt.annotate(str(lbl),(xp+0.05,yp+0.05))
 
-            
-    nl = '\n'      
-    list_mod = [f'{value} : {key}' for key,value in dict_module_type['module_type'].items()]
-    n_blanc = (3-len(list_mod)%3) if (3-len(list_mod)%3) else 0 # Pads list_mod with '' such that 
-    list_mod = list_mod + ['']*n_blanc # Pads list_mod with '' such that the length of list_mod is a multiple of 3
-    list_mod = [', '.join(y) for y in list(zip(list_mod[0::3],list_mod[1::3],list_mod[2::3]))]
-    text = f"Module names are:{nl}{nl.join(list_mod)}"
-    plt.title(text)
-    plt.xlabel('PC1 _ {0}%'.format(np.rint(100*vp[0]/sum(vp) )))
-    plt.ylabel('PC2 _ {0}%'.format(np.rint(100*vp[1]/sum(vp)) ))
-    _ = p.legend(bbox_to_anchor=(1, 1.02), loc='upper left')
+        # Builds and plot the title and the x,y labels
+
+        plt.title(title())
+        plt.xlabel('PC1 _ {0}%'.format(np.rint(100*vp[0]/sum(vp) )))
+        plt.ylabel('PC2 _ {0}%'.format(np.rint(100*vp[1]/sum(vp)) ))
+        _ = p.legend(bbox_to_anchor=(1, 1.02), loc='upper left')
+    else:
+        df_meta_pca['exp. conditions'] = df_meta_pca.apply(lambda x : f'irradiance: {x[0]}, treatment: {x[1]}',axis=1)
+        fig = px.scatter(df_meta_pca, x="x", y="y", color="module_type",hover_data=['exp. conditions'])
+
+        fig.update_traces(marker=dict(size=12,
+                          line=dict(width=2,
+                          color='DarkSlateGrey')),
+                          selector=dict(mode='markers'))
+        fig.show()
         
-    return
+        
+    return df_meta_pca

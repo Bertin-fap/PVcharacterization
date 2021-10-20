@@ -2,7 +2,7 @@ __all__ = ['DEFAULT_DIR',
            'DATA_BASE_NAME',
            'DATA_BASE_TABLE_FILE',
            'DATA_BASE_TABLE_EXP',
-           'USED_COLS',
+           'COL_NAMES',
            'PARAM_UNIT_DIC',
            'IRRADIANCE_DEFAULT_LIST',
            'TREATMENT_DEFAULT_LIST',]
@@ -22,7 +22,7 @@ DEFAULT_DIR = Path.home()
 DATA_BASE_NAME = "pv.db"
 DATA_BASE_TABLE_FILE = "PV_descp"
 DATA_BASE_TABLE_EXP = "exp_values"
-USED_COLS = [
+COL_NAMES = [
     "Title",
     "Pmax",
     "Fill Factor",

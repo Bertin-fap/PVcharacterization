@@ -7,7 +7,7 @@ __all__ = ['select_items',
 from .PVcharacterization_global import (DEFAULT_DIR,
                                        DATA_BASE_NAME,
                                        DATA_BASE_TABLE_FILE,
-                                       USED_COLS,
+                                       COL_NAMES,
                                        PARAM_UNIT_DIC)
 GEOMETRY_ITEMS_SELECTION = '500x580+50+50'    # Size of the tkinter window
 GEOMETRY_SELECT_DIR = "750x250"

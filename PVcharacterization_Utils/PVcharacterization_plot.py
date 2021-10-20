@@ -2,7 +2,7 @@ __all_ =['plot_params','init_plot_diff','plot_params_diff','construct_x_y']
 
 from .PVcharacterization_global import (PARAM_UNIT_DIC,
                                         TREATMENT_DEFAULT_LIST,
-                                        USED_COLS,
+                                        COL_NAMES,
                                         DATA_BASE_NAME,
                                         PARAM_UNIT_DIC,)
 from .PVcharacterization_GUI import select_items
@@ -250,7 +250,7 @@ def plot_params_diff(df_meta,list_diff, list_params=None,dic_trt_meaning=None):
     #3rd party imports
     import pandas as pd
 
-    list_allowed_params = list(USED_COLS)
+    list_allowed_params = list(COL_NAMES)
     list_allowed_params.remove('Title')
     if list_params is None:
         list_params = select_items(list_allowed_params,
