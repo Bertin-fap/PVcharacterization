@@ -6,8 +6,9 @@ from .PVcharacterization_global import (PARAM_UNIT_DIC,
                                         DATA_BASE_NAME,
                                         PARAM_UNIT_DIC,)
 from .PVcharacterization_GUI import select_items
-from .PVcharacterization_flashtest import (sieve_files,
-                                 read_flashtest_file)
+from .PVcharacterization_flashtest import (parse_filename,
+                                           read_flashtest_file,
+                                           sieve_files,)
 
 
 def plot_params(params,list_modules_type, df_meta,list_diff = [],dic_trt_meaning=None):
@@ -270,25 +271,28 @@ def plot_params_diff(df_meta,list_diff, list_params=None,dic_trt_meaning=None):
                 dic_trt_meaning=dic_trt_meaning) #None
     
 def plot_iv_curves(irr_select,name_select,trt_select,data_folder):
-
+    
     # Standard library imports
-    import os
     from pathlib import Path
 
-    # 3rd party import
-    import matplotlib.pyplot as plt
-
+    # 3rd party imports
+    import pandas as pd
+    import plotly.express as px
 
     database_path = Path(data_folder) / Path(DATA_BASE_NAME)
 
-    querries = sieve_files(irr_select,trt_select,name_select,database_path)
+    list_files_path = sieve_files(irr_select,trt_select,name_select,database_path)
+    list_dataframe = []
+    for file in list_files_path:
+        parse_file = parse_filename(file)
+        df_IV = read_flashtest_file(file).IV0
+        df_IV['module'] = parse_file.module_type
+        df_IV['treatment'] = parse_file.treatment
+        df_IV['irradiance'] = parse_file.irradiance
+        df_IV['exp'] = f'{parse_file.irradiance}-{parse_file.treatment}-{parse_file.module_type}'
+        list_dataframe.append(df_IV)
+    df_all_IV = pd.concat(list_dataframe)
 
-    for i, res in enumerate([read_flashtest_file(querry).IV0 for querry in querries]):
-        plt.plot(res['Voltage'],res['Current'],label=trt_select[i])
-        plt.scatter(res['Voltage'][::50],res['Current'][::50],s=10)
-        plt.xlabel(res.columns[0] +'[V]')
-        plt.ylabel(res.columns[1] +'[A]')
-        plt.title(f'Irradiance: {str(irr_select[0])} {PARAM_UNIT_DIC["IrrCorr"]}')
 
-    plt.legend()
-    plt.show()
+    fig = px.line(df_all_IV, x="Voltage", y="Current", color='exp')
+    fig.show()

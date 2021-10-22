@@ -1,28 +1,31 @@
 """ Creation: 2021.09.07
-    Last update: 2021.09.20
+    Last update: 2021.10.21
     
     Useful functions for correctly parsing the aging data files
 """
 __all__ = [
-    "read_flashtest_file",
-    "df2sqlite",
-    "parse_filename",
-    "sieve_files",
+    "assess_path_folders",
     "build_files_database",
     "build_metadata_dataframe",
-    "assess_path_folders",
+    "build_modules_filenames",
+    "build_modules_list",
+    "correct_filename",
+    "data_dashboard",
+    "df2sqlite",
+    "parse_filename",
     "pv_flashtest_pca",
+    "read_flashtest_file",
+    "sieve_files",
 ]
 
 #Internal imports 
-
-from .PVcharacterization_global import (DEFAULT_DIR,
+from .PVcharacterization_global import (COL_NAMES,
                                         DATA_BASE_NAME,
                                         DATA_BASE_TABLE_FILE,
                                         DATA_BASE_TABLE_EXP,
-                                        COL_NAMES,
-                                        PARAM_UNIT_DIC,
+                                        DEFAULT_DIR,
                                         IRRADIANCE_DEFAULT_LIST,
+                                        PARAM_UNIT_DIC,
                                         TREATMENT_DEFAULT_LIST,)
 from .PVcharacterization_GUI import (select_data_dir,
                                      select_items,)
@@ -220,7 +223,7 @@ def parse_filename(file):
     import re
 
     FileNameInfo = namedtuple("FileNameInfo", "irradiance treatment module_type file_full_path")
-    re_irradiance = re.compile(r"(?<=\_)\d{4}(?=W\_)")
+    re_irradiance = re.compile(r"(?<=\_)\d{3,4}(?=W\_)")
     re_treatment = re.compile(r"(?<=\_)T\d{1}(?=\.)")
     re_module_type = re.compile(r"[A-Z-\_]*\d{1,50}(?=\_)")
 
@@ -317,7 +320,7 @@ def sieve_files(irradiance_select, treatment_select, module_type_select, databas
 
 def assess_path_folders(path_root=None):
     
-     # Standard library imports
+    # Standard library imports
     from pathlib import Path
     
     if path_root is None:
@@ -332,8 +335,10 @@ def assess_path_folders(path_root=None):
 def build_files_database(data_folder,verbose= True):
     ''' 
     Build the table DATA_BASE_TABLE_FILE in the data base DATA_BASE_NAME with the following fields
-    irradiance, treatment, module_type, file_full_path
-
+    irradiance, treatment, module_type, file_full_path.
+    
+    Args:
+        data_folder (path):  path  of the folder containing the experimental flashtest files.
     '''
 
     # Standard library imports
@@ -376,7 +381,14 @@ def build_files_database(data_folder,verbose= True):
 
 def build_metadata_dataframe(df_files_descp,data_folder):
 
-    '''Building of the dataframe df_meta.
+    '''Building of the dataframe df_meta out of the interactivelly selected module type.
+    The df_meta index are the file names without extention (ex: QCELLS901219162417702718_0200W_T0).
+    The df_meta columns are: Title, Pmax, Fill Factor, Voc, Isc, Rseries, Rshunt,
+    Vpm, Ipm, irradiance, treatment, module_type.
+
+    Args:
+        df_files_descp (dataframe): dataframe built by the function build_files_database 
+        data_folder (path):  path  of the folder containing the experimental flashtest files. 
     '''
     
     # Standard library imports
@@ -387,33 +399,86 @@ def build_metadata_dataframe(df_files_descp,data_folder):
     import pandas as pd
 
     # Interactive selection of the modules
-    list_modules_type = df_files_descp['module_type'].unique()
-    mod_selected = select_items(list_modules_type,'Select the modules type',mode = 'multiple') 
+    list_mod_selected = build_modules_list(df_files_descp,data_folder)                                
     
-    # Extract from the file database all the filenames related to the selected modules
-    database_path = Path(data_folder) / Path(DATA_BASE_NAME)
-    list_files = sieve_files(IRRADIANCE_DEFAULT_LIST ,TREATMENT_DEFAULT_LIST,mod_selected,database_path)
-    list_files_name = [os.path.splitext(os.path.basename(x))[0] for x in list_files]
+    # Extraction from the file database all the filenames related to the selected modules
+    list_files_path = build_modules_filenames(list_mod_selected,data_folder)
+    
+    # Builds the list of files basenames without extension
+    list_files_name = [os.path.splitext(os.path.basename(x))[0] for x in list_files_path]
     list_files_name.sort()
 
     # Extraction from the dataframe df_files_descp a sub dataframe related to the selected modules 
     df_files_descp_copy = df_files_descp
-    df_files_descp_copy.index = [os.path.basename(x).split('.')[0] for x in df_files_descp_copy['file_full_path'].tolist()]
+    df_files_descp_copy.index = [os.path.basename(x).split('.')[0] 
+                                for x in df_files_descp_copy['file_full_path'].tolist()]
     df_files_descp_copy = df_files_descp_copy.loc[list_files_name,['irradiance','treatment','module_type'] ]
     
     # Building of the dataframe df_meta out of the flashtest files metadata 
-    list_dict_metadata = [read_flashtest_file(file,parse_all=False).meta_data for file in list_files]
+    list_dict_metadata = [read_flashtest_file(file,parse_all=False).meta_data for file in list_files_path]
     df_meta = pd.DataFrame.from_dict(list_dict_metadata)
     df_meta.index = list_files_name #df_meta['ID']
-    df_meta = df_meta.loc[:,COL_NAMES] # keep only COL_NAMES defined in PVcharacterization_GUI.py
+    df_meta = df_meta.loc[:,COL_NAMES] # keep only the columns which names COL_NAMES 
+                                       #  defined in PVcharacterization_GUI.py
     
     # Merges df_meta and df_files_descp_copy to add the tree columns: irradiance, treatment, module_type
     df_meta = pd.merge(df_meta,df_files_descp_copy,left_index=True, right_index=True)
 
     # Builds a database for future uses
+    database_path = Path(data_folder) / Path(DATA_BASE_NAME)
     df2sqlite(df_meta, file=database_path, tbl_name=DATA_BASE_TABLE_EXP)
     
     return df_meta
+    
+def build_modules_list(df_files_descp,data_folder):
+
+    '''Interactive selection of modules type out of the dataframe df_meta.
+   
+    Args:
+        df_files_descp (dataframe): dataframe built by the function build_files_database 
+        data_folder (path):  path  of the folder containing the experimental flashtest files. 
+       
+    Returns:
+        list_mod_selected (list os str): list of selected modules type.
+    '''
+    
+
+    # Interactive selection of the modules
+    list_modules_type = df_files_descp['module_type'].unique()
+    list_mod_selected = select_items(list_modules_type,
+                                'Select the modules type',
+                                mode = 'multiple') 
+    
+    
+    return list_mod_selected
+    
+def build_modules_filenames(list_mod_selected,data_folder):
+
+    '''Builds out of the modules type list_mod_selected the list of all filename
+    related to these modulees.
+
+    Args:
+        df_files_descp (dataframe): dataframe built by the function build_files_database 
+        list_mod_selected (list of str):  list of module names. 
+        
+    Returns
+        list_files_path (list of str): list of the path of the files related to the modules type
+                                    defined in the list list_mod_selected.
+    '''
+    
+    # Standard library imports
+    import os
+    from pathlib import Path                           
+    
+    # Extract from the file database all the filenames related to the selected modules
+    database_path = Path(data_folder) / Path(DATA_BASE_NAME)
+    list_files_path = sieve_files(IRRADIANCE_DEFAULT_LIST,
+                             TREATMENT_DEFAULT_LIST,
+                             list_mod_selected,
+                             database_path)
+    return list_files_path
+    
+
 
 def pv_flashtest_pca(df_meta,scree_plot = False,interactive_plot=False):
     
@@ -506,3 +571,40 @@ def pv_flashtest_pca(df_meta,scree_plot = False,interactive_plot=False):
         
         
     return df_meta_pca
+    
+def data_dashboard(df_files_descp,data_folder,list_params):
+    
+    # Standard library imports
+    from pathlib import Path
+    
+    #3rd party imports
+    import pandas as pd
+
+    df_meta = build_metadata_dataframe(df_files_descp,data_folder)
+    df_meta_dashboard = df_meta.pivot(values= list_params,index=['module_type','treatment',],
+                                      columns=['irradiance',]) 
+    df_meta_dashboard.to_excel(data_folder/Path('exp_summary.xlsx'))
+    
+    return df_meta_dashboard
+    
+def correct_filename(filename,new_moduletype_name):
+    
+    '''Correction of the filename with a new module type name.
+    ex. : filename = 'C:/Users/franc/PVcharacterization_files/JINERGY3272023326035_200W_T2.csv'
+          new_moduletype_name = 'JINERGY3272023326039'
+          corrected_filename = 'C:/Users/franc/PVcharacterization_files\JINERGY3272023326039_0200W_T2.csv'
+    The field irradiance, if necessary, is also upgraded  by addind leading zeros to obtain a four digits number.
+          
+    '''
+
+    # Standard library imports
+    import os
+    from pathlib import Path
+
+    import PVcharacterization_Utils as pv
+    
+    FileInfo = pv.parse_filename(filename)
+    new_file_mame = f'{new_moduletype_name}_{FileInfo.irradiance:04d}W_{FileInfo.treatment}.csv'
+    corrected_filename = os.path.join(os.path.dirname(filename), new_file_mame)
+    
+    return corrected_filename
