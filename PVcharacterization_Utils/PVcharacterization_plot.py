@@ -271,6 +271,17 @@ def plot_params_diff(df_meta,list_diff, list_params=None,dic_trt_meaning=None):
                 dic_trt_meaning=dic_trt_meaning) #None
     
 def plot_iv_curves(irr_select,name_select,trt_select,data_folder):
+
+    '''
+    Plot of the I/V curves of the modules type with: names in the list name_select,
+    tratment in the list, trt_select and irradiance in the list irr_select.
+
+    Args:
+        irr_select (list of int): list of irradiance to be plotted
+        name_select (list of str): list of module type names to be plotted
+        trt_select (list of str): list of treatments to be plotted
+        data_folder (str): full pathname of the folder containing the flashtest files
+    '''
     
     # Standard library imports
     from pathlib import Path
