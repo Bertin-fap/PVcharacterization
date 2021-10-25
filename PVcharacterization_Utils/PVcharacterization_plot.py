@@ -50,7 +50,7 @@ def plot_params(params,list_modules_type, df_meta,list_diff = [],dic_trt_meaning
                            # if false the parameters evolution  vs irradiance are plotted
     color = ['#0000A0','#1569C7','#78f89d','#FFEB3B','#E64A19'] # markers color
                                                                 #  different color per irradiance
-    marker = ["o", "+", "s", "<", ">", "p"]                     # maker symbol
+    marker = ["o", "+", "s", "<", ">", "p", "1", "2", "3", "4"] # maker symbol
                                                                 #  different symbol per module type
         
     if dic_trt_meaning is None:
@@ -169,8 +169,12 @@ def construct_x_y(df_meta,module_type,treatment,param,diff):
         df_meta_cp_deb = df_meta.query("module_type==@module_type & treatment==@treatment[1] ")
         val = np.array(df_meta_cp_end[param].tolist())
         ref = np.array(df_meta_cp_deb[param].tolist())
-        x = df_meta_cp_end['irradiance'].tolist() 
-        y = 100 * (val - ref) / ref
+        try:
+            x = df_meta_cp_end['irradiance'].tolist() 
+            y = 100 * (val - ref) / ref
+        except:
+            x = []
+            y = []
         
     return (x,y)
     
@@ -222,20 +226,9 @@ def init_plot_diff(df_meta):
     import pandas as pd
 
     mod_selected = df_meta['module_type'].unique()
-    if len(mod_selected)>2: raise Exception("Sorry, the number of modules must be <=2 ") 
-    list_setup = []
-    name =[]
-    if len(mod_selected)==2:
-        for x in df_meta[['module_type','treatment','irradiance']].groupby('module_type'):
-            name.append(x[0] )
-            list_setup.append(set(zip(x[1]['treatment'].tolist(), x[1]['irradiance'].tolist())))
-        if list_setup[1] - list_setup[0]:
-            raise Exception(f'Cannot compare {name[0] } and {name[1]}')
-
-    list_treatments = pd.unique(df_meta['treatment'])
-
+    list_treatments = list(pd.unique(df_meta['treatment']))
+    list_treatments.sort()
     if len(list_treatments)==1: raise Exception("Sorry, the number of treatments must be >1 ") 
-
     list_combinations = list(combinations(list_treatments,2))
 
     list_diff = select_items(list_combinations,
@@ -267,7 +260,8 @@ def plot_params_diff(df_meta,list_diff, list_params=None,dic_trt_meaning=None):
     list_modules = pd.unique(df_meta['module_type'])          # List of modules name (ID)
     plot_params(list_params,
                 list_modules,
-                df_meta,list_diff = list_diff,
+                df_meta,
+                list_diff = list_diff,
                 dic_trt_meaning=dic_trt_meaning) #None
     
 def plot_iv_curves(irr_select,name_select,trt_select,data_folder):
@@ -305,5 +299,10 @@ def plot_iv_curves(irr_select,name_select,trt_select,data_folder):
     df_all_IV = pd.concat(list_dataframe)
 
 
-    fig = px.line(df_all_IV, x="Voltage", y="Current", color='exp')
+    fig = px.line(df_all_IV,
+                  x="Voltage",
+                  y="Current",
+                  color='exp',
+                  labels={'Voltage':'Voltage (V)',
+                          'Current':'Current (A)'})
     fig.show()

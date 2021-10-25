@@ -561,7 +561,14 @@ def pv_flashtest_pca(df_meta,scree_plot = False,interactive_plot=False):
         _ = p.legend(bbox_to_anchor=(1, 1.02), loc='upper left')
     else:
         df_meta_pca['exp. conditions'] = df_meta_pca.apply(lambda x : f'irradiance: {x[0]}, treatment: {x[1]}',axis=1)
-        fig = px.scatter(df_meta_pca, x="x", y="y", color="module_type",hover_data=['exp. conditions'])
+        fig = px.scatter(df_meta_pca,
+                         x="x",
+                         y="y",
+                         color="module_type",
+                         symbol="treatment",
+                         hover_data=['exp. conditions'],
+                         labels={'x':'PC1 _ {0}%'.format(np.rint(100*vp[0]/sum(vp) )),
+                                 'y':'PC2 _ {0}%'.format(np.rint(100*vp[1]/sum(vp)) )})
 
         fig.update_traces(marker=dict(size=12,
                           line=dict(width=2,
