@@ -5,6 +5,7 @@
 """
 __all__ = [
     "assess_path_folders",
+    "batch_filename_correction",
     "build_files_database",
     "build_metadata_dataframe",
     "build_modules_filenames",
@@ -630,4 +631,47 @@ def correct_filename(filename,new_moduletype_name):
     corrected_filename = os.path.join(os.path.dirname(filename), new_file_mame)
     
     return corrected_filename
+
+
+def batch_filename_correction(data_folder, verbose=False):
+    ''' The `batch_filename_correction` function corrects the wrong file names 
+    by replacing the wrong module type names with the longest one supposed to be the correct one
+    and adding the missing leading zeros  in the irradiance field.
+    
+    Args:
+        data_folder (path): folder full path of the experimental files.
+        verbose (bool): allows printings if True (default: False).
+        
+    Returns:
+        `(str)`: status of the function run.   
+
+    ''' 
+
+    # Standard library imports
+    import os
+
+    # Get dataframe describing the experimental files
+    df_files_descp = build_files_database(data_folder, verbose=False)
+
+    # Select the module types which names has to be corrected
+    list_mod_selected = build_modules_list(df_files_descp,data_folder)
+
+    # Choose the longest module type name
+    list_mod_selected =sorted(list_mod_selected, key=len, reverse=True) # Descending sort by length of items
+    new_moduletype_name = list_mod_selected[0] # Select the first items of the sorted list which corresponds 
+                                               # to the longest module name
+
+    # Picks in the database all the filenames related to the selected module except the correct first one
+    list_wrong_files_path = build_modules_filenames(list_mod_selected[1:],data_folder)
+
+    for filename in list_wrong_files_path: # Modifies the incorrect filenames
+        corrected_filename = correct_filename(filename,new_moduletype_name)
+        if verbose :
+            print(f'old name: {filename}')
+            print(f'new name: {corrected_filename}')
+            print()
+        os.rename(filename,corrected_filename)
+    
+    status = 'Correction done on :'+ ', '.join(list_mod_selected[1:]) + '\nnew name: ' + new_moduletype_name
+    return status 
 
