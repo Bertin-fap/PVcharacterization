@@ -1,7 +1,7 @@
-__all__ = ['select_items',
-           'select_files',
+__all__ = ['input_treatment_labels',
            'select_data_dir',
-           'input_treatment_labels']
+           'select_files',
+           'select_items',]
 
 # Global variables used by Select_multi_items function
 from .PVcharacterization_global import (DEFAULT_DIR,

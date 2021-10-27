@@ -320,6 +320,16 @@ def sieve_files(irradiance_select, treatment_select, module_type_select, databas
 
 def assess_path_folders(path_root=None):
     
+    '''
+    Interactivelly sets the path to the working folder
+    
+    Args:
+      path_root (str): if none the root for the interactive selection is the user path home othewise path_root
+      
+    Returns:
+      The data folder name.
+    '''
+    
     # Standard library imports
     from pathlib import Path
     
@@ -455,7 +465,7 @@ def build_modules_list(df_files_descp,data_folder):
 def build_modules_filenames(list_mod_selected,data_folder):
 
     '''Builds out of the modules type list_mod_selected the list of all filename
-    related to these modulees.
+    related to these modules.
 
     Args:
         df_files_descp (dataframe): dataframe built by the function build_files_database 
@@ -601,17 +611,23 @@ def correct_filename(filename,new_moduletype_name):
           new_moduletype_name = 'JINERGY3272023326039'
           corrected_filename = 'C:/Users/franc/PVcharacterization_files\JINERGY3272023326039_0200W_T2.csv'
     The field irradiance, if necessary, is also upgraded  by addind leading zeros to obtain a four digits number.
+    
+    Args:
+      filename (str): the full path of the file name to be corrected
+      new_moduletype_name (str): the new module name
+      
+     Returns:
+       The corrected full path name.
           
     '''
 
     # Standard library imports
     import os
     from pathlib import Path
-
-    import PVcharacterization_Utils as pv
     
-    FileInfo = pv.parse_filename(filename)
+    FileInfo = parse_filename(filename)
     new_file_mame = f'{new_moduletype_name}_{FileInfo.irradiance:04d}W_{FileInfo.treatment}.csv'
     corrected_filename = os.path.join(os.path.dirname(filename), new_file_mame)
     
     return corrected_filename
+

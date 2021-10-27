@@ -1,4 +1,8 @@
-__all_ =['plot_params','init_plot_diff','plot_params_diff','construct_x_y']
+__all_ =['construct_x_y',
+         'init_plot_diff',
+         'plot_params',
+         'plot_params_diff',
+         ]
 
 from .PVcharacterization_global import (PARAM_UNIT_DIC,
                                         TREATMENT_DEFAULT_LIST,
@@ -11,7 +15,7 @@ from .PVcharacterization_flashtest import (parse_filename,
                                            sieve_files,)
 
 
-def plot_params(params,list_modules_type, df_meta,list_diff = [],dic_trt_meaning=None):
+def plot_params(params,list_modules_type, df_meta,list_diff = [],dic_trt_meaning=None,long_label=False):
     
     '''Plots for different modules and for different parameters:
        - the relative  evolution (in %) of the parameters vs irradiance for treatment differences if diff=True
@@ -32,6 +36,8 @@ def plot_params(params,list_modules_type, df_meta,list_diff = [],dic_trt_meaning
                                   if list_diff=[] the parameters evolution  vs irradiance are plotted.
                                   else the parameters relative evolution in %, vs irradiance, between
                                   treatment tuple[0] and tuple[1] are plotted.
+       long_label (bool): if true long labels such moduletype_irradiance are plotted
+                          if false short labels moduletype is plotted instead
 
     '''
 
@@ -49,10 +55,11 @@ def plot_params(params,list_modules_type, df_meta,list_diff = [],dic_trt_meaning
                            #    between every difference treatment are plotted
                            # if false the parameters evolution  vs irradiance are plotted
     color = ['#0000A0','#1569C7','#78f89d','#FFEB3B','#E64A19'] # markers color
-                                                                #  different color per irradiance
+
+    # TO DO deal the case with more than 10 modules type
+    #  different color per irradiance
     marker = ["o", "+", "s", "<", ">", "p", "1", "2", "3", "4"] # maker symbol
                                                                 #  different symbol per module type
-        
     if dic_trt_meaning is None:
         dic_trt_meaning = {trt:trt for trt in TREATMENT_DEFAULT_LIST}
     
@@ -70,10 +77,10 @@ def plot_params(params,list_modules_type, df_meta,list_diff = [],dic_trt_meaning
         list_trt_diff = list_trt
         dic_ax = {t:i for i,t in enumerate(list_trt)}
     
-    #  Set y dynamic of the plots (enlarge the irradiance dynamic)
+    #  Set ordinates dynamic of the plots (enlarge the irradiance dynamic)
     dic_ylim = set_ymin_ymax_param(df_meta,params, list_modules_type,list_trt_diff,diff)
             
-    #  Set x dynamic of the plots (enlarge the irradiance dynamic)
+    #  Set abcissa dynamic of the plots (enlarge the irradiance dynamic)
     (irr_min, irr_max) = set_xmin_xmax(list_irr)
 
     # Set the figure size and the subplots
@@ -94,25 +101,27 @@ def plot_params(params,list_modules_type, df_meta,list_diff = [],dic_trt_meaning
     # Loop over module, parameters, treatment/treatment differences and irradiance
     for idx_module, module_type in enumerate(list_modules_type): # Loop on the modules type
         for idx_param, param in enumerate(params): # Loop over the parameters
-            for trt in list_trt_diff: # Loop over the treatmentS
+            for num_trt,trt in enumerate(list_trt_diff): # Loop over the treatmentS
                 idx_trt = dic_ax[trt]
                 x,y = construct_x_y(df_meta,module_type,trt,param,diff)
                 for idx_irr,x_y in enumerate(zip(x,y)):
+                    if long_label:
+                        label = module_type+' '+str(x_y[0])
+                    else:
+                        if num_trt==0: label = module_type
                     ax[idx_param, idx_trt].scatter(
                             x_y[0],
                             x_y[1],
                             c=color[idx_irr] ,
                             marker=marker[idx_module],
-                            label=module_type+' '+str(x_y[0]))
-
-
+                            label=label)
                 if diff: ax[idx_param, idx_trt].axhline(y=0, color="red", linestyle="--")
                 if idx_param == 0:
                     title = f'{dic_trt_meaning[trt[0]]} - {dic_trt_meaning[trt[1]]}' if diff else dic_trt_meaning[trt]
                     ax[idx_param, idx_trt].set_title(title)
                 ax[idx_param, idx_trt].set_xlabel("Irradiance ($W/{m^2}$)")
                 if idx_trt == 0:
-                    if diff:
+                    if diff: # Plot the relative evolution of the parameters
                         ax[idx_param, idx_trt].set_ylabel("$\Delta$ " + param + " (%)")
                     else:
                         ax[idx_param, idx_trt].set_ylabel(f'{param} ({PARAM_UNIT_DIC[param]})')
@@ -178,9 +187,9 @@ def construct_x_y(df_meta,module_type,treatment,param,diff):
         
     return (x,y)
     
-def set_ymin_ymax_param(df_meta,params, list_modules_type,list_trt_diff,diff):
+def set_ymin_ymax_param(df_meta, params, list_modules_type, list_trt_diff, diff):
     
-    '''Build a dict keyed by the parameters and wich values are list [ymin, ymax] 
+    '''Build a dict keyed by the parameters and which values are list [ymin, ymax] 
     '''
     
     min_max_param = {}
@@ -238,7 +247,7 @@ def init_plot_diff(df_meta):
 
     return list_diff
 
-def plot_params_diff(df_meta,list_diff, list_params=None,dic_trt_meaning=None):
+def plot_params_diff(df_meta,list_diff, list_params=None, dic_trt_meaning=None,long_label=False):
     
     
     #3rd party imports
@@ -262,7 +271,8 @@ def plot_params_diff(df_meta,list_diff, list_params=None,dic_trt_meaning=None):
                 list_modules,
                 df_meta,
                 list_diff = list_diff,
-                dic_trt_meaning=dic_trt_meaning) #None
+                dic_trt_meaning=dic_trt_meaning,
+                long_label=long_label) 
     
 def plot_iv_curves(irr_select,name_select,trt_select,data_folder):
 
