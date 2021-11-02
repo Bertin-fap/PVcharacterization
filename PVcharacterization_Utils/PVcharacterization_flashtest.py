@@ -222,7 +222,8 @@ def parse_filename(file):
     # Standard library imports
     from collections import namedtuple
     import re
-
+    
+    # TO DO: add a status and manage parsing error
     FileNameInfo = namedtuple("FileNameInfo", "irradiance treatment module_type file_full_path")
     re_irradiance = re.compile(r"(?<=\_)\d{3,4}(?=W\_)")
     re_treatment = re.compile(r"(?<=\_)T\d{1}(?=\.)")
@@ -350,6 +351,10 @@ def build_files_database(data_folder,verbose= True):
     
     Args:
         data_folder (path):  path  of the folder containing the experimental flashtest files.
+        
+    Returns:
+        (data frame) dataframe df_files_descp with the following columns: irradiance, treatment, module_type, 
+        file_full_path.
     '''
 
     # Standard library imports
@@ -399,7 +404,10 @@ def build_metadata_dataframe(df_files_descp,data_folder):
 
     Args:
         df_files_descp (dataframe): dataframe built by the function build_files_database 
-        data_folder (path):  path  of the folder containing the experimental flashtest files. 
+        data_folder (path):  path  of the folder containing the experimental flashtest files.
+
+    Returns:
+        (dataframe)  : dataframe of the experimental data  
     '''
     
     # Standard library imports
@@ -608,7 +616,7 @@ def data_dashboard(df_files_descp,data_folder,list_params):
 def correct_filename(filename,new_moduletype_name):
     
     '''Correction of the filename with a new module type name.
-    ex. : filename = 'C:/Users/franc/PVcharacterization_files/JINERGY3272023326035_200W_T2.csv'
+    ex. : filename = 'C:/Users/franc/PVcharacterization_files/JINERGY26039_200W_T2.csv'
           new_moduletype_name = 'JINERGY3272023326039'
           corrected_filename = 'C:/Users/franc/PVcharacterization_files\JINERGY3272023326039_0200W_T2.csv'
     The field irradiance, if necessary, is also upgraded  by addind leading zeros to obtain a four digits number.
@@ -675,3 +683,12 @@ def batch_filename_correction(data_folder, verbose=False):
     status = 'Correction done on :'+ ', '.join(list_mod_selected[1:]) + '\nnew name: ' + new_moduletype_name
     return status 
 
+def sqlite_to_fataframe():
+    import sqlite3
+    import pandas as pd
+    # Create your connection.
+    cnx = sqlite3.connect('file.db')
+
+    df = pd.read_sql_query("SELECT * FROM table_name", cnx)
+    
+    return df

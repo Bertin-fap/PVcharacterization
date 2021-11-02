@@ -8,14 +8,19 @@ from .PVcharacterization_global import (PARAM_UNIT_DIC,
                                         TREATMENT_DEFAULT_LIST,
                                         COL_NAMES,
                                         DATA_BASE_NAME,
-                                        PARAM_UNIT_DIC,)
+                                        PARAM_UNIT_DIC,
+                                        )
 from .PVcharacterization_GUI import select_items
 from .PVcharacterization_flashtest import (parse_filename,
                                            read_flashtest_file,
                                            sieve_files,)
 
 
-def plot_params(params,list_modules_type, df_meta,list_diff = [],dic_trt_meaning=None,long_label=False):
+def plot_params(params,list_modules_type,
+                df_meta,list_diff = [],
+                dic_trt_meaning=None,
+                long_label=False,
+                plot_params_dict=None):
     
     '''Plots for different modules and for different parameters:
        - the relative  evolution (in %) of the parameters vs irradiance for treatment differences if diff=True
@@ -49,17 +54,47 @@ def plot_params(params,list_modules_type, df_meta,list_diff = [],dic_trt_meaning
     import numpy as np
     import pandas as pd
     
-    assert len(params)>1, "The number of parameters must be greater than one"
+    from .PVcharacterization_global import PLOT_PARAMS_DICT
+    
+    params_nb = len(params)
+    assert params_nb>1, "The number of parameters must be greater than one"
     
     diff = bool(list_diff) # if true the parameters relative evolution in %, vs irradiance, 
                            #    between every difference treatment are plotted
                            # if false the parameters evolution  vs irradiance are plotted
-    color = ['#0000A0','#1569C7','#78f89d','#FFEB3B','#E64A19'] # markers color
-
-    # TO DO deal the case with more than 10 modules type
-    #  different color per irradiance
-    marker = ["o", "+", "s", "<", ">", "p", "1", "2", "3", "4"] # maker symbol
-                                                                #  different symbol per module type
+                           
+    
+    if plot_params_dict is None:
+        color = PLOT_PARAMS_DICT['marker_colors'] # different marker color per irradiance
+        marker = PLOT_PARAMS_DICT['markers'] # different marker symbol per module type
+        size_marker = PLOT_PARAMS_DICT['marker_size']
+        legend_fontsize = PLOT_PARAMS_DICT['legend_fontsize']
+        ticks_fontsize = PLOT_PARAMS_DICT['ticks_fontsize']
+        labels_fontsize = PLOT_PARAMS_DICT['labels_fontsize']
+        title_fontsize = PLOT_PARAMS_DICT['title_fontsize']
+        width = PLOT_PARAMS_DICT['fig_width']
+        height_unit = PLOT_PARAMS_DICT['fig_height_unit']
+        title_height = PLOT_PARAMS_DICT['fig_title_height']
+        bbox_x0 = PLOT_PARAMS_DICT['bbox_x0']
+        bbox_y0 = PLOT_PARAMS_DICT['bbox_y0']
+        bbox_width = PLOT_PARAMS_DICT['bbox_width']
+        bbox_height = PLOT_PARAMS_DICT['bbox_height']
+    else:
+        color = plot_params_dict['marker_colors'] # different marker color per irradiance
+        marker = plot_params_dict['markers'] # different marker symbol per module type
+        size_marker = plot_params_dict['marker_size']
+        legend_fontsize = plot_params_dict['legend_fontsize']
+        ticks_fontsize = plot_params_dict['ticks_fontsize']
+        labels_fontsize = plot_params_dict['labels_fontsize']
+        title_fontsize = plot_params_dict['title_fontsize']
+        width = plot_params_dict['fig_width']
+        height_unit = plot_params_dict['fig_height_unit']
+        title_height = plot_params_dict['fig_title_height']
+        bbox_x0 = plot_params_dict['bbox_x0']
+        bbox_y0 = plot_params_dict['bbox_y0']
+        bbox_width = plot_params_dict['bbox_width']
+        bbox_height = plot_params_dict['bbox_height']
+    
     if dic_trt_meaning is None:
         dic_trt_meaning = {trt:trt for trt in TREATMENT_DEFAULT_LIST}
     
@@ -84,16 +119,16 @@ def plot_params(params,list_modules_type, df_meta,list_diff = [],dic_trt_meaning
     (irr_min, irr_max) = set_xmin_xmax(list_irr)
 
     # Set the figure size and the subplots
-    fig = plt.figure(figsize=(15,15) if len(params)>1 else (10,5))
+    fig = plt.figure(figsize=(width,height_unit*params_nb+title_height))
     gs = fig.add_gridspec(
-        len(params),
-        len(list_trt_diff),
-        hspace=0,
-        wspace=0
-    )
+                          params_nb,
+                          len(list_trt_diff),
+                          hspace=0,
+                          wspace=0
+                          )
 
     ax = gs.subplots(sharex="col", sharey="row")
-    if len(params) ==1 : # we transform a 1D array to a 2D array
+    if params_nb==1 : # we transform a 1D array to a 2D array
         ax = ax.reshape((1,np.shape(ax)[0]))
     if len(list_trt_diff) ==1: # we transform a 1D array to a 2D array
         ax = ax.reshape((np.shape(ax)[0],1))
@@ -114,20 +149,25 @@ def plot_params(params,list_modules_type, df_meta,list_diff = [],dic_trt_meaning
                             x_y[1],
                             c=color[idx_irr] ,
                             marker=marker[idx_module],
-                            label=label)
+                            label=label,
+                            s=size_marker)
                 if diff: ax[idx_param, idx_trt].axhline(y=0, color="red", linestyle="--")
                 if idx_param == 0:
-                    title = f'{dic_trt_meaning[trt[0]]} - {dic_trt_meaning[trt[1]]}' if diff else dic_trt_meaning[trt]
-                    ax[idx_param, idx_trt].set_title(title)
-                ax[idx_param, idx_trt].set_xlabel("Irradiance ($W/{m^2}$)")
+                    title = f'{dic_trt_meaning[trt[0]]} - {dic_trt_meaning[trt[1]]}' \
+                            if diff else dic_trt_meaning[trt]
+                    ax[idx_param, idx_trt].set_title(title,fontsize=title_fontsize)
+                ax[idx_param, idx_trt].set_xlabel("Irradiance ($W/{m^2}$)",
+                                                   fontsize=labels_fontsize)
                 if idx_trt == 0:
                     if diff: # Plot the relative evolution of the parameters
-                        ax[idx_param, idx_trt].set_ylabel("$\Delta$ " + param + " (%)")
+                        ax[idx_param, idx_trt].set_ylabel("$\Delta$ " + param + " (%)",
+                                                          fontsize=labels_fontsize)
                     else:
-                        ax[idx_param, idx_trt].set_ylabel(f'{param} ({PARAM_UNIT_DIC[param]})')
+                        ax[idx_param, idx_trt].set_ylabel(f'{param} ({PARAM_UNIT_DIC[param]})',
+                                                          fontsize=labels_fontsize)
                 ax[idx_param, idx_trt].tick_params(axis="x", rotation=90)
                 ax[idx_param, idx_trt].set_xticks(list_irr, minor=False)
-                ax[idx_param, idx_trt].set_xticklabels(list_irr, fontsize=12)
+                ax[idx_param, idx_trt].set_xticklabels(list_irr, fontsize=ticks_fontsize)
                 ax[idx_param, idx_trt].set_xlim([irr_min, irr_max])
                 ax[idx_param, idx_trt].set_ylim(dic_ylim[param])
                 for axis in ["top", "bottom", "left", "right"]:
@@ -141,8 +181,9 @@ def plot_params(params,list_modules_type, df_meta,list_diff = [],dic_trt_meaning
                labels_handles.values(),
                labels_handles.keys(),
                loc='center right',
-               bbox_to_anchor=(0.6,0, 0.5, 1),
+               bbox_to_anchor=(bbox_x0, bbox_y0, bbox_width, bbox_height),
                bbox_transform=plt.gcf().transFigure,
+               fontsize=legend_fontsize
      )
     
 def construct_x_y(df_meta,module_type,treatment,param,diff):
@@ -247,7 +288,11 @@ def init_plot_diff(df_meta):
 
     return list_diff
 
-def plot_params_diff(df_meta,list_diff, list_params=None, dic_trt_meaning=None,long_label=False):
+def plot_params_diff(df_meta,list_diff,
+                     list_params=None,
+                     dic_trt_meaning=None,
+                     long_label=False,
+                     plot_params_dict=None):
     
     
     #3rd party imports
@@ -272,7 +317,8 @@ def plot_params_diff(df_meta,list_diff, list_params=None, dic_trt_meaning=None,l
                 df_meta,
                 list_diff = list_diff,
                 dic_trt_meaning=dic_trt_meaning,
-                long_label=long_label) 
+                long_label=long_label,
+                plot_params_dict=plot_params_dict) 
     
 def plot_iv_curves(irr_select,name_select,trt_select,data_folder):
 
