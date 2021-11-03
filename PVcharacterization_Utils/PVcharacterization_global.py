@@ -52,4 +52,5 @@ PLOT_PARAMS_DICT = {
                      'bbox_x0': 0.6, 
                      'bbox_y0': 0, 
                      'bbox_width': 0.5, 
-                     'bbox_height': 1,}
+                     'bbox_height': 1,
+                     'irr_add_nbr':2,}

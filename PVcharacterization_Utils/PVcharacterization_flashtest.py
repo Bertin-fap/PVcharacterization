@@ -17,6 +17,7 @@ __all__ = [
     "pv_flashtest_pca",
     "read_flashtest_file",
     "sieve_files",
+    "sqlite_to_fataframe",
 ]
 
 #Internal imports 
@@ -659,7 +660,8 @@ def batch_filename_correction(data_folder, verbose=False):
     import os
 
     # Get dataframe describing the experimental files
-    df_files_descp = build_files_database(data_folder, verbose=False)
+    #df_files_descp = build_files_database(data_folder, verbose=False)
+    df_files_descp = sqlite_to_fataframe(data_folder,DATA_BASE_TABLE_FILE)
 
     # Select the module types which names has to be corrected
     list_mod_selected = build_modules_list(df_files_descp,data_folder)
@@ -683,12 +685,26 @@ def batch_filename_correction(data_folder, verbose=False):
     status = 'Correction done on :'+ ', '.join(list_mod_selected[1:]) + '\nnew name: ' + new_moduletype_name
     return status 
 
-def sqlite_to_fataframe():
+def sqlite_to_fataframe(data_folder,tbl_name):
+    
+    '''Read a databade as a dataframe.
+    
+    Args:
+        data_folder (path): path of the folder holding the database
+        tbl_name (str): name of the table
+        
+    Returns:
+         (dataframe): a dataframe containing the database.
+    '''
+    
+    from pathlib import Path
     import sqlite3
     import pandas as pd
-    # Create your connection.
-    cnx = sqlite3.connect('file.db')
+    
+    database_path = Path(data_folder) / Path(DATA_BASE_NAME)
 
-    df = pd.read_sql_query("SELECT * FROM table_name", cnx)
+    cnx = sqlite3.connect(database_path)
+
+    df = pd.read_sql_query("SELECT * FROM "+tbl_name, cnx)
     
     return df

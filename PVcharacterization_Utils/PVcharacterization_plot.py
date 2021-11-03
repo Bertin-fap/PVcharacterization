@@ -79,6 +79,7 @@ def plot_params(params,list_modules_type,
         bbox_y0 = PLOT_PARAMS_DICT['bbox_y0']
         bbox_width = PLOT_PARAMS_DICT['bbox_width']
         bbox_height = PLOT_PARAMS_DICT['bbox_height']
+        irr_add_nbr = PLOT_PARAMS_DICT['irr_add_nbr']
     else:
         color = plot_params_dict['marker_colors'] # different marker color per irradiance
         marker = plot_params_dict['markers'] # different marker symbol per module type
@@ -94,6 +95,7 @@ def plot_params(params,list_modules_type,
         bbox_y0 = plot_params_dict['bbox_y0']
         bbox_width = plot_params_dict['bbox_width']
         bbox_height = plot_params_dict['bbox_height']
+        irr_add_nbr = plot_params_dict['irr_add_nbr']
     
     if dic_trt_meaning is None:
         dic_trt_meaning = {trt:trt for trt in TREATMENT_DEFAULT_LIST}
@@ -116,7 +118,7 @@ def plot_params(params,list_modules_type,
     dic_ylim = set_ymin_ymax_param(df_meta,params, list_modules_type,list_trt_diff,diff)
             
     #  Set abcissa dynamic of the plots (enlarge the irradiance dynamic)
-    (irr_min, irr_max) = set_xmin_xmax(list_irr)
+    (irr_min, irr_max) = set_xmin_xmax(list_irr,irr_add_nbr=irr_add_nbr)
 
     # Set the figure size and the subplots
     fig = plt.figure(figsize=(width,height_unit*params_nb+title_height))
@@ -248,8 +250,8 @@ def set_ymin_ymax_param(df_meta, params, list_modules_type, list_trt_diff, diff)
    
     return min_max_param
 
-def set_xmin_xmax(list_irr):
-    irr_add_nbr = 2
+def set_xmin_xmax(list_irr,irr_add_nbr=1):
+
     irr_add = irr_add_nbr * (max(list_irr) - min(list_irr))
     irr_min, irr_max = (
         min(list_irr) -  irr_add,
