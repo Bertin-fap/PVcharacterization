@@ -196,7 +196,7 @@ def read_flashtest_file(filepath, parse_all=True):
     )
     return data
 
-def parse_filename(file):
+def parse_filename(file,warning=False):
 
     """
     Let the string "file" structured as follow:
@@ -208,6 +208,7 @@ def parse_filename(file):
     
     Args:
        file (str): filename to parse
+       warning (bool): print the warning if true (default=False)
     
     Returns:
         data (namedtuple): results of the file parsing (see summary)
@@ -218,6 +219,8 @@ def parse_filename(file):
         FileInfo.power = 200
         FileInfo.treatment = "T2"
         FileInfo.time = "JINERGY3272023326035"
+        status= True
+     
     
     """
     # Standard library imports
@@ -225,17 +228,44 @@ def parse_filename(file):
     import re
     
     # TO DO: add a status and manage parsing error
-    FileNameInfo = namedtuple("FileNameInfo", "irradiance treatment module_type file_full_path")
+    FileNameInfo = namedtuple("FileNameInfo", "irradiance treatment module_type file_full_path status")
     re_irradiance = re.compile(r"(?<=\_)\d{3,4}(?=W\_)")
     re_treatment = re.compile(r"(?<=\_)T\d{1}(?=\.)")
     re_module_type = re.compile(r"[A-Z-\_]*\d{1,50}(?=\_)")
-
+    
+    status=True
+    try:
+        irradiance=int(re.findall(re_irradiance, file)[0])
+    except IndexError:
+        irradiance=None
+        status=False
+    try:
+        treatment=re.findall(re_treatment, file)[0]
+    except IndexError:
+        treatment=None
+        status=False
+    try:
+        module_type=re.findall(re_module_type, file)[0]
+    except IndexError:
+        module_type=None
+        status=False
+    try:
+        file_full_path=file
+    except IndexError:
+        file_full_path=None
+        status=False
+               
+    if not status:  
+        if warning: print(f'Warning: the file {file}  is not a flash test format')
+        
     FileInfo = FileNameInfo(
-        irradiance=int(re.findall(re_irradiance, file)[0]),
-        treatment=re.findall(re_treatment, file)[0],
-        module_type=re.findall(re_module_type, file)[0],
-        file_full_path=file,
+        irradiance=irradiance ,
+        treatment=treatment,
+        module_type=module_type,
+        file_full_path=file_full_path,
+        status=status,
     )
+        
     return FileInfo
 
 
@@ -365,16 +395,19 @@ def build_files_database(data_folder,verbose= True):
 
     # 3rd party import
     import pandas as pd
-
-
     
     datafiles_list = list(Path(data_folder).rglob("*.csv")) # Recursive collection all the .csv lies
     
     if not datafiles_list:
         raise Exception(f"No .csv files detected in {data_folder} and sub folders")
-
-    list_files_descp = [parse_filename(str(file)) for file in datafiles_list]
-
+    list_files_descp=[]
+    for file in datafiles_list:
+        fileinfo = parse_filename(str(file))  
+        if fileinfo.status:
+            list_files_descp.append(fileinfo)
+        else:
+            pass
+        
     file_check = True  # Check for the multi occurrences of a file
     list_multi_file = []
     for file,frequency in Counter([os.path.basename(x) for x in datafiles_list]).items(): # Check the the uniqueness of a file name
@@ -636,8 +669,8 @@ def correct_filename(filename,new_moduletype_name):
     from pathlib import Path
     
     FileInfo = parse_filename(filename)
-    new_file_mame = f'{new_moduletype_name}_{FileInfo.irradiance:04d}W_{FileInfo.treatment}.csv'
-    corrected_filename = os.path.join(os.path.dirname(filename), new_file_mame)
+    new_file_name = f'{new_moduletype_name}_{FileInfo.irradiance:04d}W_{FileInfo.treatment}.csv'
+    corrected_filename = os.path.join(os.path.dirname(filename), new_file_name)
     
     return corrected_filename
 
