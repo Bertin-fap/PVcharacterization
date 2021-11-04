@@ -17,7 +17,7 @@ __all__ = [
     "pv_flashtest_pca",
     "read_flashtest_file",
     "sieve_files",
-    "sqlite_to_fataframe",
+    "sqlite_to_dataframe",
 ]
 
 #Internal imports 
@@ -685,9 +685,9 @@ def batch_filename_correction(data_folder, verbose=False):
     status = 'Correction done on :'+ ', '.join(list_mod_selected[1:]) + '\nnew name: ' + new_moduletype_name
     return status 
 
-def sqlite_to_fataframe(data_folder,tbl_name):
+def sqlite_to_dataframe(data_folder,tbl_name):
     
-    '''Read a databade as a dataframe.
+    '''Read a database as a dataframe.
     
     Args:
         data_folder (path): path of the folder holding the database
