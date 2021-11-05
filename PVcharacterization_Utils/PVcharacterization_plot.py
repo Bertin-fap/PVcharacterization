@@ -300,7 +300,7 @@ def plot_params_diff(df_meta,list_diff,
     #3rd party imports
     import pandas as pd
 
-    list_allowed_params = list(COL_NAMES)
+    list_allowed_params = list(COL_NAMES)+['Isc_corr','Fill Factor_corr']
     list_allowed_params.remove('Title')
     if list_params is None:
         list_params = select_items(list_allowed_params,

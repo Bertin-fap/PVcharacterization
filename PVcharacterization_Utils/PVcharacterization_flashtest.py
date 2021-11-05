@@ -11,6 +11,7 @@ __all__ = [
     "build_modules_filenames",
     "build_modules_list",
     "correct_filename",
+    "correct_iv_curve",
     "data_dashboard",
     "df2sqlite",
     "parse_filename",
@@ -227,42 +228,38 @@ def parse_filename(file,warning=False):
     from collections import namedtuple
     import re
     
-    # TO DO: add a status and manage parsing error
     FileNameInfo = namedtuple("FileNameInfo", "irradiance treatment module_type file_full_path status")
     re_irradiance = re.compile(r"(?<=\_)\d{3,4}(?=W\_)")
-    re_treatment = re.compile(r"(?<=\_)T\d{1}(?=\.)")
+    re_treatment = re.compile(r"(?<=\_)T\d{1}(?=\.csv)")
     re_module_type = re.compile(r"[A-Z-\_]*\d{1,50}(?=\_)")
     
     status=True
-    try:
+    try: # Find irradiance field
         irradiance=int(re.findall(re_irradiance, file)[0])
     except IndexError:
         irradiance=None
         status=False
-    try:
+        
+    try: # Find treatment field
         treatment=re.findall(re_treatment, file)[0]
     except IndexError:
         treatment=None
         status=False
-    try:
+        
+    try: # Find module type field
         module_type=re.findall(re_module_type, file)[0]
     except IndexError:
         module_type=None
         status=False
-    try:
-        file_full_path=file
-    except IndexError:
-        file_full_path=None
-        status=False
                
-    if not status:  
-        if warning: print(f'Warning: the file {file}  is not a flash test format')
+    if not status and warning:  
+        print(f'Warning: the file {file}  is not a flash test format')
         
     FileInfo = FileNameInfo(
         irradiance=irradiance ,
         treatment=treatment,
         module_type=module_type,
-        file_full_path=file_full_path,
+        file_full_path=file,
         status=status,
     )
         
@@ -375,7 +372,7 @@ def assess_path_folders(path_root=None):
     
     return data_folder
 
-def build_files_database(data_folder,verbose= True):
+def build_files_database(data_folder,verbose=True):
     ''' 
     Build the table DATA_BASE_TABLE_FILE in the data base DATA_BASE_NAME with the following fields
     irradiance, treatment, module_type, file_full_path.
@@ -400,9 +397,10 @@ def build_files_database(data_folder,verbose= True):
     
     if not datafiles_list:
         raise Exception(f"No .csv files detected in {data_folder} and sub folders")
+        
     list_files_descp=[]
     for file in datafiles_list:
-        fileinfo = parse_filename(str(file))  
+        fileinfo = parse_filename(str(file),warning=True)  
         if fileinfo.status:
             list_files_descp.append(fileinfo)
         else:
@@ -425,7 +423,7 @@ def build_files_database(data_folder,verbose= True):
     df2sqlite(df_files_descp, file=database_path, tbl_name=DATA_BASE_TABLE_FILE)
     
     if verbose:
-        print(f'{len(datafiles_list)} files was detected.\ndf_files_descp and the data base table {DATA_BASE_TABLE_FILE} in {database_path} are built')
+        print(f'{len(datafiles_list)} flash test files was detected.\ndf_files_descp and the data base table {DATA_BASE_TABLE_FILE} in {database_path} are built')
     
     return df_files_descp
 
@@ -457,9 +455,21 @@ def build_metadata_dataframe(df_files_descp,data_folder):
     # Extraction from the file database all the filenames related to the selected modules
     list_files_path = build_modules_filenames(list_mod_selected,data_folder)
     
+    # Build corrected Isc and Fill Factor
+    isc = []
+    fac_corr = []
+    for file in list_files_path:
+        iv_info = read_flashtest_file(file, parse_all=True)
+        voltage = iv_info.IV0["Voltage"]
+        current = iv_info.IV0["Current"]
+        corrected_data = correct_iv_curve(voltage,current)
+        isc.append(corrected_data.current[0])
+        fac_corr.append(corrected_data.fac_corr)
+    
     # Builds the list of files basenames without extension
     list_files_name = [os.path.splitext(os.path.basename(x))[0] for x in list_files_path]
     list_files_name.sort()
+    
 
     # Extraction from the dataframe df_files_descp a sub dataframe related to the selected modules 
     df_files_descp_copy = df_files_descp
@@ -473,6 +483,8 @@ def build_metadata_dataframe(df_files_descp,data_folder):
     df_meta.index = list_files_name #df_meta['ID']
     df_meta = df_meta.loc[:,COL_NAMES] # keep only the columns which names COL_NAMES 
                                        #  defined in PVcharacterization_GUI.py
+    df_meta['Isc_corr'] = isc
+    df_meta['Fill Factor_corr'] = df_meta['Fill Factor']*fac_corr
     
     # Merges df_meta and df_files_descp_copy to add the tree columns: irradiance, treatment, module_type
     df_meta = pd.merge(df_meta,df_files_descp_copy,left_index=True, right_index=True)
@@ -741,3 +753,38 @@ def sqlite_to_dataframe(data_folder,tbl_name):
     df = pd.read_sql_query("SELECT * FROM "+tbl_name, cnx)
     
     return df
+
+def correct_iv_curve(voltage,current):
+    
+    '''Correct improper values of the iv curve for low voltage
+    '''
+    
+    # Standard library imports
+    import bisect
+    from collections import namedtuple
+    
+    # 3rd party imports
+    import numpy as np
+    
+    correction = namedtuple("correction", "fac_corr current")
+
+    min_voltage_fit = 5
+    max_voltage_fit = 20
+    error_max = 0.3
+    
+    voltage_idx_min = bisect.bisect_left(voltage, 5, lo=0, hi=len(voltage))
+    voltage_idx_max = bisect.bisect_left(voltage, 25, lo=0, hi=len(voltage))
+    current_fit = current[voltage_idx_min:voltage_idx_max]
+    voltage_fit = voltage[voltage_idx_min:voltage_idx_max]
+    
+    polynomial_coeff = np.polyfit(voltage_fit ,current_fit,1)
+
+    ynew = np.poly1d(polynomial_coeff)
+    
+    current_corrected = [y if 100*(y-yfit)/y< error_max else yfit for y,yfit 
+               in zip(current[0:voltage_idx_max],ynew(voltage[0:voltage_idx_max]))] + list(current[voltage_idx_max:])
+    
+    corrected_data = correction(current_corrected[0] / current[0],
+                                current_corrected)
+
+    return corrected_data
