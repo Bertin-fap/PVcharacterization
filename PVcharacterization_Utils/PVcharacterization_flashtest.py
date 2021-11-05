@@ -205,7 +205,7 @@ def parse_filename(file,warning=False):
     where <> is a placeholder, d a digit, X a capital letter and ~ the relative or absolute path of the file
     
     parse_filename parses "file" in three chunks: JINERGY<ddddddddddddd>, <dddd>, T<d> and stores them in
-    the nametuple FileInfo.
+    the nametuple FileInfo. In addition the extention is checked and must be .csv
     
     Args:
        file (str): filename to parse
@@ -432,7 +432,9 @@ def build_metadata_dataframe(df_files_descp,data_folder):
     '''Building of the dataframe df_meta out of the interactivelly selected module type.
     The df_meta index are the file names without extention (ex: QCELLS901219162417702718_0200W_T0).
     The df_meta columns are: Title, Pmax, Fill Factor, Voc, Isc, Rseries, Rshunt,
-    Vpm, Ipm, irradiance, treatment, module_type.
+    Vpm, Ipm, Isc_corr, Fill Factor_corr, irradiance, treatment, module_type.
+    Isc_corr, Fill Factor_corr are respesctivelly the correcteted short circuit current
+    and fill factor.
 
     Args:
         df_files_descp (dataframe): dataframe built by the function build_files_database 
@@ -688,6 +690,7 @@ def correct_filename(filename,new_moduletype_name):
 
 
 def batch_filename_correction(data_folder, verbose=False):
+
     ''' The `batch_filename_correction` function corrects the wrong file names 
     by replacing the wrong module type names with the longest one supposed to be the correct one
     and adding the missing leading zeros  in the irradiance field.
@@ -756,7 +759,17 @@ def sqlite_to_dataframe(data_folder,tbl_name):
 
 def correct_iv_curve(voltage,current):
     
-    '''Correct improper values of the iv curve for low voltage
+    '''Correct improper values of the iv curve for low voltage.
+    Method: we fit iv curve between min_voltage_fit (5 V) and max_voltage_fit (20 V)
+    by a polynomial of order 1 and extrapolate its values for voltage > min_voltage_fit.
+    
+    Args:
+       voltage (list): list of voltage of the IV curve.
+       current (list): list of current of the IV curve.
+       
+    Returns:
+       (named tuple) correction.fac_corr is the correction factor of the Fill Facror, 
+       correction.current is the corrected list of current.
     '''
     
     # Standard library imports
@@ -768,9 +781,9 @@ def correct_iv_curve(voltage,current):
     
     correction = namedtuple("correction", "fac_corr current")
 
-    min_voltage_fit = 5
-    max_voltage_fit = 20
-    error_max = 0.3
+    min_voltage_fit = 5   # in Volt
+    max_voltage_fit = 20  # in A
+    error_max = 0.3       # in percent
     
     voltage_idx_min = bisect.bisect_left(voltage, 5, lo=0, hi=len(voltage))
     voltage_idx_max = bisect.bisect_left(voltage, 25, lo=0, hi=len(voltage))
@@ -784,7 +797,7 @@ def correct_iv_curve(voltage,current):
     current_corrected = [y if 100*(y-yfit)/y< error_max else yfit for y,yfit 
                in zip(current[0:voltage_idx_max],ynew(voltage[0:voltage_idx_max]))] + list(current[voltage_idx_max:])
     
-    corrected_data = correction(current_corrected[0] / current[0],
+    corrected_data = correction(current[0] / current_corrected[0] ,
                                 current_corrected)
 
     return corrected_data
