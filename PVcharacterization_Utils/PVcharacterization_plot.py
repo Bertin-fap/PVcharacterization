@@ -10,8 +10,10 @@ from .PVcharacterization_global import (PARAM_UNIT_DIC,
                                         DATA_BASE_NAME,
                                         PARAM_UNIT_DIC,
                                         )
-from .PVcharacterization_GUI import select_items
-from .PVcharacterization_flashtest import (parse_filename,
+from .PVcharacterization_GUI import (select_items,
+                                     select_files)
+from .PVcharacterization_flashtest import (correct_iv_curve,
+                                           parse_filename,
                                            read_flashtest_file,
                                            sieve_files,)
 
@@ -364,3 +366,63 @@ def plot_iv_curves(irr_select,name_select,trt_select,data_folder):
                   labels={'Voltage':'Voltage (V)',
                           'Current':'Current (A)'})
     fig.show()
+    
+def plot_iv_power():
+
+    # Standard library imports
+    import os
+    from pathlib import Path
+    
+    # 3rd party import
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+
+    file = select_files()
+    file = file[0]
+    answ = read_flashtest_file(file, parse_all=True) # Parse= True to retrieve IV curves
+    voltage = answ.IV0["Voltage"]
+    current = answ.IV0["Current"]
+    corrected_current = correct_iv_curve(voltage,current)
+
+    power = voltage * current
+    power_max = max(power)
+    Vpm = voltage[np.argmax(power)]
+    Ipm = current[np.argmax(power)]
+
+    fig = plt.figure(figsize=(10,10))
+    _ = plt.plot(voltage,current,label="Raw data")
+    _ = plt.plot(voltage,corrected_current,label="Corrected data")
+    _ = plt.scatter([0],[answ.meta_data['Isc']],c='r',marker='+',s=50,label="Isc(0) manufacturer")
+
+    _ = plt.plot([0,Vpm],[Ipm,Ipm], color='red', linestyle='--')
+    _ = plt.plot([Vpm,Vpm],[0,Ipm], color='red', linestyle='--')
+
+    plt.xlim(-0.2,max(voltage))
+    plt.ylim(0,1*current[0] )
+
+    plt.xlabel('Voltage (V)')
+    plt.ylabel('Current (A)')
+    plt.legend( bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0.)
+    plt.title(os.path.basename(file))
+
+    ax = plt.gca()
+    ax2 = ax.twinx()
+    _ = ax2.plot(voltage,power,'--k',label='Maufacturer power')
+    _ = ax2.scatter(voltage[::50] ,voltage[::50]*corrected_current[::50],label='PVcharacterization power')
+    _ = ax2.plot([Vpm,max(voltage)],[power_max,power_max], color='red', linestyle='--')
+    ax2.set_ylabel('Power (W)')
+    ax2.set_ylim(0,1.2*power_max)
+
+    ax2.legend( bbox_to_anchor=(1.05, 1), loc='lower left', borderaxespad=0.)
+
+    print('PV characterization Data:')
+    print(f'Pmax={power_max:.2f} W\nIsc={current[0]:.2f} A, Isc_corr={corrected_current[0]:.2f} A' )
+    print(f'Voc={max(voltage):.2f} V' )
+    print(f'Fill Factor={max(power)/(current[0]*max(voltage)):.3f}, corrected Fill Factor={max(power)/(corrected_current[0]*max(voltage)):.3f}')
+    print(f'Vpm={Vpm:.2f} V' )
+    print(f'Ipm={Ipm:.2f} V' )
+
+    print('\nManufacturer data :')
+    for param in  ['Pmax','Isc','Voc','Fill Factor','Vpm','Ipm']: 
+        print(f'{param}={answ.meta_data[param] :.2f}')

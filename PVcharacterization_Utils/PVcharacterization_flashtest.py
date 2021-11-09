@@ -459,14 +459,14 @@ def build_metadata_dataframe(df_files_descp,data_folder):
     
     # Build corrected Isc and Fill Factor
     isc = []
-    fac_corr = []
+    fill_factor = []
     for file in list_files_path:
         iv_info = read_flashtest_file(file, parse_all=True)
         voltage = iv_info.IV0["Voltage"]
         current = iv_info.IV0["Current"]
-        corrected_data = correct_iv_curve(voltage,current)
-        isc.append(corrected_data.current[0])
-        fac_corr.append(corrected_data.fac_corr)
+        corrected_current = correct_iv_curve(voltage,current)
+        isc.append(corrected_current[0])
+        fill_factor.append(max(voltage*current)/(corrected_current[0]*max(voltage)))
     
     # Builds the list of files basenames without extension
     list_files_name = [os.path.splitext(os.path.basename(x))[0] for x in list_files_path]
@@ -486,7 +486,7 @@ def build_metadata_dataframe(df_files_descp,data_folder):
     df_meta = df_meta.loc[:,COL_NAMES] # keep only the columns which names COL_NAMES 
                                        #  defined in PVcharacterization_GUI.py
     df_meta['Isc_corr'] = isc
-    df_meta['Fill Factor_corr'] = df_meta['Fill Factor']*fac_corr
+    df_meta['Fill Factor_corr'] = fill_factor
     
     # Merges df_meta and df_files_descp_copy to add the tree columns: irradiance, treatment, module_type
     df_meta = pd.merge(df_meta,df_files_descp_copy,left_index=True, right_index=True)
@@ -768,18 +768,14 @@ def correct_iv_curve(voltage,current):
        current (list): list of current of the IV curve.
        
     Returns:
-       (named tuple) correction.fac_corr is the correction factor of the Fill Facror, 
-       correction.current is the corrected list of current.
+       (list) corrected current.
     '''
     
     # Standard library imports
     import bisect
-    from collections import namedtuple
     
     # 3rd party imports
     import numpy as np
-    
-    correction = namedtuple("correction", "fac_corr current")
 
     min_voltage_fit = 5   # in Volt
     max_voltage_fit = 20  # in A
@@ -797,7 +793,5 @@ def correct_iv_curve(voltage,current):
     current_corrected = [y if 100*(y-yfit)/y< error_max else yfit for y,yfit 
                in zip(current[0:voltage_idx_max],ynew(voltage[0:voltage_idx_max]))] + list(current[voltage_idx_max:])
     
-    corrected_data = correction(current[0] / current_corrected[0] ,
-                                current_corrected)
 
-    return corrected_data
+    return current_corrected
