@@ -709,8 +709,8 @@ def batch_filename_correction(data_folder, verbose=False):
 
     # Get dataframe describing the experimental files
     #df_files_descp = build_files_database(data_folder, verbose=False)
-    df_files_descp = sqlite_to_fataframe(data_folder,DATA_BASE_TABLE_FILE)
-
+    df_files_descp = sqlite_to_dataframe(data_folder,DATA_BASE_TABLE_FILE)
+   
     # Select the module types which names has to be corrected
     list_mod_selected = build_modules_list(df_files_descp,data_folder)
 
