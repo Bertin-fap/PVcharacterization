@@ -14,8 +14,10 @@ __all__ = [
     "correct_iv_curve",
     "data_dashboard",
     "df2sqlite",
+    "fit_curve",
     "parse_filename",
     "pv_flashtest_pca",
+    "read_and_clean",
     "read_flashtest_file",
     "sieve_files",
     "sqlite_to_dataframe",
@@ -795,3 +797,117 @@ def correct_iv_curve(voltage,current):
     
 
     return current_corrected
+
+def read_and_clean(file):
+    
+    '''
+    The read_and_clean function reads an .xlsx file organized as flow:
+
+    ======= ===== ====== ====== =====  ===== ====== ======
+                   500h  1000h  1500h  2000h  2500h 3000h
+    Hetna   XDH    -6%    -12%   -22%  -37%     
+            DH            -6%          -15%         -30%
+    Q cells XDH    -5%    -5%     50%  -6%          -8%
+            DH            -5%    -6,    50%         -8%
+    Jinergy XDH    -1%     50%   -2%   -3%          -5%
+            DH     -2%    -2%     50%  -2%           50%
+    ======= ===== ====== ====== =====  ===== ====== ======
+    
+    The data are cleaned:
+    
+    - the missing values of the column are filled as follow Hetna,Hetna,Qcell,Qcell,...
+    - for each label Hetna-XDH, Hetna-DH,... the x_clean, y_clean lists are built by retaining
+    only the (x_clean, y_clean) tuples where y_clean is not an nan.
+    
+    Args:
+       file (Path): absolute na of the .xlsx file
+       
+    Returns:
+       dic_values (dict): dictionary keyed by label of the named tuples:
+                          data_struct.x containing the x clean values
+                          data_struct.y containing the y clean values
+    
+    Examples:
+       {'Hetna-XDH':([500,1000,1500,2000],[-6,-12,-22,-37]),
+       'Hetna-DH':([1000,2000,3000],[-6,-15,-30]),
+       ...}
+                          
+    '''
+    
+    # Standard library imports
+    from collections import namedtuple
+    import re
+  
+    # 3rd party imports
+    import numpy as np
+    import pandas as pd
+    
+    re_col_name = re.compile('[0-9]{1,4}')
+
+    dic_values = {}
+    data_struct = namedtuple("x_y",["x", "y",])
+    
+    # Read the excel file and rename the columns
+    df = pd.read_excel(file)
+    col_names = {df.columns[0]:"module",
+                 df.columns[1]:"experiment"}
+    df.rename(columns=col_names,inplace=True)
+    col_names.update({x: re_col_name.findall(str(x))[0]+'h' for x in df.columns if  re_col_name.findall(str(x))})
+    df.rename(columns=col_names,inplace=True)
+
+    # Takes care of missing values in the "module" column
+    titre1_corrige = []
+    list_titre = df['module'].tolist()
+    for i, titre in enumerate(list_titre): 
+        if isinstance(titre,float): # Convoluted check for missing value
+            titre1_corrige.append(list_titre[i-1])
+        else:
+            titre1_corrige.append(list_titre[i])      
+    df['module'] = titre1_corrige
+    
+    
+    # Takes care of nan y_i data value by skipping (x_i,y_i) tuples when y_i in nan
+    x = [float(val_col[0:-1]) for val_col in df.columns if 'h' in val_col] # Built the time list
+    
+    for index_row in df.index:
+        label = df.iloc[index_row,0]+ '-' + df.iloc[index_row,1]
+        y = df.iloc[index_row,np.r_[2:len(df.columns)]].tolist()
+        x_clean = []
+        y_clean = []
+        for x1, y1, test in zip(x,y,np.isnan(y)):
+            if not test:
+                x_clean.append(x1)
+                y_clean.append(y1*100)
+
+        dic_values[label] = data_struct(x_clean,y_clean)
+    
+    return dic_values
+
+def fit_curve(x,y,order=2,n_fit=200):
+    
+    '''
+    The function fit_curve fit the set of tuples (x_i,y_i) by a polynom of order ORDER.
+    
+    Args:
+       x (ndarray): list of absissa
+       y (ndarray): list of ordinate
+       dic_coef (dict): dict kayed by label of the fitting coefficients (use mutability)
+       order (int): order of the fitting polynomial
+       n_fit (int): number of points to plot using the fitting polynomial
+       
+    Returns:
+       (x_fit,y_fit) (tuple of ndarrays): x_fit list of the n_fit fitting absissa
+                                          x_fit list of the n_fit fitting ordinate
+       
+    '''
+    
+    # 3rd party imports
+    import numpy as np
+    
+    assert len(x)>= order+1, f'Cannot fit {len(x)} with a polynomial of order {ORDER}'
+    
+    x_fit = np.linspace(min(x),max(x),n_fit)
+    poly_coef = np.polyfit(x, y, order)
+    p = np.poly1d(poly_coef)
+    y_fit = p(x_fit)
+    return (x_fit,y_fit,poly_coef)
