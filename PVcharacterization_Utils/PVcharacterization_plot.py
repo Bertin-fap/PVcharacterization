@@ -1,6 +1,5 @@
 __all_ =['construct_x_y',
          'init_plot_diff',
-         'plot_params',
          'plot_params_diff',
          ]
 
@@ -8,7 +7,9 @@ from .PVcharacterization_global import (PARAM_UNIT_DIC,
                                         TREATMENT_DEFAULT_LIST,
                                         COL_NAMES,
                                         DATA_BASE_NAME,
+                                        NBR_MAX_PARAMS_PLOT,
                                         PARAM_UNIT_DIC,
+                                        PLOT_PARAMS_DICT,
                                         )
 from .PVcharacterization_GUI import (select_items,
                                      select_files)
@@ -17,12 +18,13 @@ from .PVcharacterization_flashtest import (correct_iv_curve,
                                            read_flashtest_file,
                                            sieve_files,)
 
-
-def plot_params(params,list_modules_type,
-                df_meta,list_diff = [],
-                dic_trt_meaning=None,
-                long_label=False,
-                plot_params_dict=None):
+def _plot_params(params,
+                 list_modules_type,
+                 df_meta,
+                 plot_params_dict,
+                 list_diff = [],
+                 dic_trt_meaning=None,
+                 long_label=False,):
     
     '''Plots for different modules and for different parameters:
        - the relative  evolution (in %) of the parameters vs irradiance for treatment differences if diff=True
@@ -56,48 +58,12 @@ def plot_params(params,list_modules_type,
     import numpy as np
     import pandas as pd
     
-    from .PVcharacterization_global import PLOT_PARAMS_DICT
-    
     params_nb = len(params)
     assert params_nb>1, "The number of parameters must be greater than one"
     
     diff = bool(list_diff) # if true the parameters relative evolution in %, vs irradiance, 
                            #    between every difference treatment are plotted
                            # if false the parameters evolution  vs irradiance are plotted
-                           
-    
-    if plot_params_dict is None:
-        color = PLOT_PARAMS_DICT['marker_colors'] # different marker color per irradiance
-        marker = PLOT_PARAMS_DICT['markers'] # different marker symbol per module type
-        size_marker = PLOT_PARAMS_DICT['marker_size']
-        legend_fontsize = PLOT_PARAMS_DICT['legend_fontsize']
-        ticks_fontsize = PLOT_PARAMS_DICT['ticks_fontsize']
-        labels_fontsize = PLOT_PARAMS_DICT['labels_fontsize']
-        title_fontsize = PLOT_PARAMS_DICT['title_fontsize']
-        width = PLOT_PARAMS_DICT['fig_width']
-        height_unit = PLOT_PARAMS_DICT['fig_height_unit']
-        title_height = PLOT_PARAMS_DICT['fig_title_height']
-        bbox_x0 = PLOT_PARAMS_DICT['bbox_x0']
-        bbox_y0 = PLOT_PARAMS_DICT['bbox_y0']
-        bbox_width = PLOT_PARAMS_DICT['bbox_width']
-        bbox_height = PLOT_PARAMS_DICT['bbox_height']
-        irr_add_nbr = PLOT_PARAMS_DICT['irr_add_nbr']
-    else:
-        color = plot_params_dict['marker_colors'] # different marker color per irradiance
-        marker = plot_params_dict['markers'] # different marker symbol per module type
-        size_marker = plot_params_dict['marker_size']
-        legend_fontsize = plot_params_dict['legend_fontsize']
-        ticks_fontsize = plot_params_dict['ticks_fontsize']
-        labels_fontsize = plot_params_dict['labels_fontsize']
-        title_fontsize = plot_params_dict['title_fontsize']
-        width = plot_params_dict['fig_width']
-        height_unit = plot_params_dict['fig_height_unit']
-        title_height = plot_params_dict['fig_title_height']
-        bbox_x0 = plot_params_dict['bbox_x0']
-        bbox_y0 = plot_params_dict['bbox_y0']
-        bbox_width = plot_params_dict['bbox_width']
-        bbox_height = plot_params_dict['bbox_height']
-        irr_add_nbr = plot_params_dict['irr_add_nbr']
     
     if dic_trt_meaning is None:
         dic_trt_meaning = {trt:trt for trt in TREATMENT_DEFAULT_LIST}
@@ -120,10 +86,12 @@ def plot_params(params,list_modules_type,
     dic_ylim = set_ymin_ymax_param(df_meta,params, list_modules_type,list_trt_diff,diff)
             
     #  Set abcissa dynamic of the plots (enlarge the irradiance dynamic)
-    (irr_min, irr_max) = set_xmin_xmax(list_irr,irr_add_nbr=irr_add_nbr)
+    (irr_min, irr_max) = set_xmin_xmax(list_irr,irr_add_nbr=plot_params_dict['irr_add_nbr'])
 
     # Set the figure size and the subplots
-    fig = plt.figure(figsize=(width,height_unit*params_nb+title_height))
+    fig = plt.figure(figsize=(plot_params_dict['fig_width'],
+                              plot_params_dict['fig_height_unit']*params_nb+
+                              plot_params_dict['fig_title_height']))
     gs = fig.add_gridspec(
                           params_nb,
                           len(list_trt_diff),
@@ -151,27 +119,27 @@ def plot_params(params,list_modules_type,
                     ax[idx_param, idx_trt].scatter(
                             x_y[0],
                             x_y[1],
-                            c=color[idx_irr] ,
-                            marker=marker[idx_module],
+                            c=plot_params_dict['marker_colors'][idx_irr] ,
+                            marker=plot_params_dict['markers'][idx_module],
                             label=label,
-                            s=size_marker)
+                            s=plot_params_dict['marker_size'])
                 if diff: ax[idx_param, idx_trt].axhline(y=0, color="red", linestyle="--")
                 if idx_param == 0:
                     title = f'{dic_trt_meaning[trt[0]]} - {dic_trt_meaning[trt[1]]}' \
                             if diff else dic_trt_meaning[trt]
-                    ax[idx_param, idx_trt].set_title(title,fontsize=title_fontsize)
+                    ax[idx_param, idx_trt].set_title(title,fontsize=plot_params_dict['title_fontsize'])
                 ax[idx_param, idx_trt].set_xlabel("Irradiance ($W/{m^2}$)",
-                                                   fontsize=labels_fontsize)
+                                                   fontsize=plot_params_dict['labels_fontsize'])
                 if idx_trt == 0:
                     if diff: # Plot the relative evolution of the parameters
                         ax[idx_param, idx_trt].set_ylabel("$\Delta$ " + param + " (%)",
-                                                          fontsize=labels_fontsize)
+                                                          fontsize=plot_params_dict['labels_fontsize'])
                     else:
                         ax[idx_param, idx_trt].set_ylabel(f'{param} ({PARAM_UNIT_DIC[param]})',
-                                                          fontsize=labels_fontsize)
+                                                          fontsize=plot_params_dict['labels_fontsize'])
                 ax[idx_param, idx_trt].tick_params(axis="x", rotation=90)
                 ax[idx_param, idx_trt].set_xticks(list_irr, minor=False)
-                ax[idx_param, idx_trt].set_xticklabels(list_irr, fontsize=ticks_fontsize)
+                ax[idx_param, idx_trt].set_xticklabels(list_irr, fontsize=plot_params_dict['ticks_fontsize'])
                 ax[idx_param, idx_trt].set_xlim([irr_min, irr_max])
                 ax[idx_param, idx_trt].set_ylim(dic_ylim[param])
                 for axis in ["top", "bottom", "left", "right"]:
@@ -185,9 +153,12 @@ def plot_params(params,list_modules_type,
                labels_handles.values(),
                labels_handles.keys(),
                loc='center right',
-               bbox_to_anchor=(bbox_x0, bbox_y0, bbox_width, bbox_height),
+               bbox_to_anchor=(plot_params_dict['bbox_x0'],
+                               plot_params_dict['bbox_y0'],
+                               plot_params_dict['bbox_width'],
+                               plot_params_dict['bbox_height']),
                bbox_transform=plt.gcf().transFigure,
-               fontsize=legend_fontsize
+               fontsize=plot_params_dict['legend_fontsize']
      )
     
 def construct_x_y(df_meta,module_type,treatment,param,diff):
@@ -292,7 +263,8 @@ def init_plot_diff(df_meta):
 
     return list_diff
 
-def plot_params_diff(df_meta,list_diff,
+def plot_params_diff(df_meta,
+                     list_diff,
                      list_params=None,
                      dic_trt_meaning=None,
                      long_label=False,
@@ -316,13 +288,21 @@ def plot_params_diff(df_meta,list_diff,
             list_params.remove(unknow_param)
 
     list_modules = pd.unique(df_meta['module_type'])          # List of modules name (ID)
-    plot_params(list_params,
+    if len(list_modules)>NBR_MAX_PARAMS_PLOT:
+        list_modules = list_modules[0:NBR_MAX_PARAMS_PLOT-1]
+        print(f'WARNING: to much modules. Only the first {NBR_MAX_PARAMS_PLOT} will be plotted.')
+    if plot_params_dict is None:
+        plot_params_dict = PLOT_PARAMS_DICT
+    else:
+        plot_params_dict = plot_params_dict
+        
+    _plot_params(list_params,
                 list_modules,
                 df_meta,
+                plot_params_dict,
                 list_diff = list_diff,
                 dic_trt_meaning=dic_trt_meaning,
-                long_label=long_label,
-                plot_params_dict=plot_params_dict) 
+                long_label=long_label,) 
     
 def plot_iv_curves(irr_select,name_select,trt_select,data_folder):
 
@@ -367,7 +347,7 @@ def plot_iv_curves(irr_select,name_select,trt_select,data_folder):
                           'Current':'Current (A)'})
     fig.show()
     
-def plot_iv_power():
+def plot_iv_power(file=None):
 
     # Standard library imports
     import os
@@ -377,9 +357,12 @@ def plot_iv_power():
     import matplotlib.pyplot as plt
     import numpy as np
 
-
-    file = select_files()
-    file = file[0]
+    if file is None:
+        file = select_files()
+        file = file[0]
+    else:
+        file=file
+        
     answ = read_flashtest_file(file, parse_all=True) # Parse= True to retrieve IV curves
     voltage = answ.IV0["Voltage"]
     current = answ.IV0["Current"]
@@ -415,7 +398,8 @@ def plot_iv_power():
     ax2.set_ylim(0,1.2*power_max)
 
     ax2.legend( bbox_to_anchor=(1.05, 1), loc='lower left', borderaxespad=0.)
-
+    
+    print(f'Filename: {file}\n')
     print('PV characterization Data:')
     print(f'Pmax={power_max:.2f} W\nIsc={current[0]:.2f} A, Isc_corr={corrected_current[0]:.2f} A' )
     print(f'Voc={max(voltage):.2f} V' )
@@ -425,4 +409,6 @@ def plot_iv_power():
 
     print('\nManufacturer data :')
     for param in  ['Pmax','Isc','Voc','Fill Factor','Vpm','Ipm']: 
-        print(f'{param}={answ.meta_data[param] :.2f}')
+        print(f'{param}={answ.meta_data[param] :.2f} {PARAM_UNIT_DIC[param]}')
+        
+

@@ -3,54 +3,85 @@ __all__ = ['COL_NAMES',
            'DATA_BASE_NAME',
            'DATA_BASE_TABLE_FILE',
            'DATA_BASE_TABLE_EXP',
+           'ENCODING',
+		   'IRRADIANCE_DEFAULT_LIST',
+           'NBR_MAX_PARAMS_PLOT',
            'PLOT_PARAMS_DICT',
-           'IRRADIANCE_DEFAULT_LIST',
            'PARAM_UNIT_DIC',
-           'TREATMENT_DEFAULT_LIST',]
+           'TREATMENT_DEFAULT_LIST',
+           'change_config_pvcharacterization',
+           'config_pvcharacterization',
+           'WORKING_DIR',]
+           
+def change_config_pvcharacterization(data_folder):
 
-# Standard library imports
-from pathlib import Path
+    from functools import reduce
+    from pathlib import Path
+    
 
-PARAM_UNIT_DIC = {
-    "IrrCorr": "W/m2",
-    "Pmax": "W",
-    "Voc": "V",
-    "Isc": "A",
-    "Fill Factor": "1",
-    "Rseries":chr(937),
-}
-DEFAULT_DIR = Path.home()
-DATA_BASE_NAME = "pv.db"
-DATA_BASE_TABLE_FILE = "PV_descp"
-DATA_BASE_TABLE_EXP = "exp_values"
-COL_NAMES = [
-    "Title",
-    "Pmax",
-    "Fill Factor",
-    "Voc",
-    "Isc",
-    "Rseries",
-    "Rshunt",
-    "Vpm",
-    "Ipm",
-]
-IRRADIANCE_DEFAULT_LIST = [200,400,600,800,1000,2000,4000]
-TREATMENT_DEFAULT_LIST =  ["T0", "T1", "T2", "T3", "T4"]
+    import yaml
+    
 
-# TO DO deal the case with more than 10 modules type
-PLOT_PARAMS_DICT = {
-                     'markers': ["o", "+", "s", "<", ">", "p", "1", "2", "3", "4"], 
-                     'marker_colors': ['#0000A0','#1569C7','#78f89d','#FFEB3B','#E64A19'],
-                     'marker_size': 40,
-                     'legend_fontsize': 16,
-                     'ticks_fontsize': 12,
-                     'labels_fontsize': 14,
-                     'title_fontsize':16,
-                     'fig_width': 10, 
-                     'fig_height_unit': 4,
-                     'fig_title_height': 3,
-                     'bbox_x0': 0.6, 
-                     'bbox_y0': 0, 
-                     'bbox_width': 0.5, 
-                     'bbox_height': 1,
-                     'irr_add_nbr':2,}
+    path_config_file = Path(__file__).parent / Path('Pvcharacterization.yaml')
+    with open(path_config_file) as file:
+        parse_yaml = yaml.safe_load(file)
+        DEFAULT_DIR = Path.home()
+        data_folder_list = list(Path(data_folder).parts)
+        del data_folder_list[0:len(DEFAULT_DIR.parts)]
+        WORKING_DIR = str(reduce(lambda a, b:Path(a) / Path(b), data_folder_list))
+        parse_yaml['WORKING_DIR'] = WORKING_DIR
+    
+    with open(path_config_file, 'w') as file:
+        outputs = yaml.dump(parse_yaml, file)
+
+def config_pvcharacterization():
+
+    from pathlib import Path
+
+    import yaml
+    
+
+    path_config_file = Path(__file__).parent / Path('Pvcharacterization.yaml')
+    with open(path_config_file) as file:
+        parse_yaml = yaml.safe_load(file)
+    PARAM_UNIT_DIC = parse_yaml['PARAM_UNIT_DIC']
+    PARAM_UNIT_DIC['Rseries'] = chr(937)
+    DATA_BASE_NAME = parse_yaml['DATA_BASE_NAME']
+    ENCODING = parse_yaml['ENCODING']
+    DATA_BASE_TABLE_FILE = parse_yaml['DATA_BASE_TABLE_FILE']
+    DATA_BASE_TABLE_EXP = parse_yaml['DATA_BASE_TABLE_EXP']
+    COL_NAMES = parse_yaml['COL_NAMES']
+    IRRADIANCE_DEFAULT_LIST = parse_yaml['IRRADIANCE_DEFAULT_LIST']
+    TREATMENT_DEFAULT_LIST = parse_yaml['TREATMENT_DEFAULT_LIST']
+    PLOT_PARAMS_DICT = parse_yaml['PLOT_PARAMS_DICT']
+    NBR_MAX_PARAMS_PLOT = parse_yaml['NBR_MAX_PARAMS_PLOT']
+    DEFAULT_DIR = Path.home()
+    WORKING_DIR = Path.home() / Path(parse_yaml['WORKING_DIR'])
+    
+    
+    return (COL_NAMES,
+	        DEFAULT_DIR, 
+            DATA_BASE_NAME,
+            DATA_BASE_TABLE_FILE,
+            DATA_BASE_TABLE_EXP,
+            ENCODING,
+            IRRADIANCE_DEFAULT_LIST,
+            NBR_MAX_PARAMS_PLOT,
+			PARAM_UNIT_DIC,
+            PLOT_PARAMS_DICT,
+			TREATMENT_DEFAULT_LIST,
+            WORKING_DIR)
+
+(COL_NAMES,
+ DEFAULT_DIR, 
+ DATA_BASE_NAME,
+ DATA_BASE_TABLE_FILE,
+ DATA_BASE_TABLE_EXP,
+ ENCODING,
+ IRRADIANCE_DEFAULT_LIST,
+ NBR_MAX_PARAMS_PLOT,
+ PARAM_UNIT_DIC,
+ PLOT_PARAMS_DICT,
+ TREATMENT_DEFAULT_LIST,
+ WORKING_DIR,) = config_pvcharacterization()
+ 

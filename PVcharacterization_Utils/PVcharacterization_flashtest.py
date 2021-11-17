@@ -4,23 +4,22 @@
     Useful functions for correctly parsing the aging data files
 """
 __all__ = [
+    "add_exp_to_database",
     "assess_path_folders",
     "batch_filename_correction",
     "build_files_database",
     "build_metadata_dataframe",
+    "build_metadata_df_from_db",
     "build_modules_filenames",
     "build_modules_list",
     "correct_filename",
     "correct_iv_curve",
     "data_dashboard",
-    "df2sqlite",
     "fit_curve",
     "parse_filename",
     "pv_flashtest_pca",
     "read_and_clean",
     "read_flashtest_file",
-    "sieve_files",
-    "sqlite_to_dataframe",
 ]
 
 #Internal imports 
@@ -29,11 +28,18 @@ from .PVcharacterization_global import (COL_NAMES,
                                         DATA_BASE_TABLE_FILE,
                                         DATA_BASE_TABLE_EXP,
                                         DEFAULT_DIR,
+                                        ENCODING,
                                         IRRADIANCE_DEFAULT_LIST,
                                         PARAM_UNIT_DIC,
                                         TREATMENT_DEFAULT_LIST,)
 from .PVcharacterization_GUI import (select_data_dir,
                                      select_items,)
+from .PVcharacterization_database import (add_files_to_database,
+                                          df2sqlite,
+                                          sieve_files,
+                                          sqlite_to_dataframe,
+                                          suppress_duplicate_database,
+                                           )
                                        
 def read_flashtest_file(filepath, parse_all=True):
 
@@ -131,7 +137,13 @@ def read_flashtest_file(filepath, parse_all=True):
         ["meta_data", "IV0", "IV1", "IV2", "Ref_Cell0", "Ref_Cell1", "Ref_Cell2"],
     )
 
-    df_data = pd.read_csv(filepath, sep=",", skiprows=0, header=None)
+    df_data = pd.read_csv(filepath,
+                          sep=",",
+                          skiprows=0,
+                          header=None,
+                          encoding=ENCODING) # encoding = latin-1 by default to avoid 
+                                             # trouble with u'\xe9' with utf-8
+                                             # https://flutterq.com/unicodedecodeerror-utf8-codec-cant-decode-byte-0xe9-in-position-10-invalid-continuation-byte/
     
     # Builds the list (ndarray) of the index of the beginnig of the data blocks (I/V and Ref cell) 
     index_data_header = np.where(
@@ -267,89 +279,6 @@ def parse_filename(file,warning=False):
         
     return FileInfo
 
-
-def df2sqlite(dataframe, file=None, tbl_name="import"):
-
-    """The function df2sqlite converts a dataframe into a squlite database.
-    
-    Args:
-       dataframe (panda.DataFrame): the dataframe to convert in a data base
-       file (Path): full pathname of the database
-       tbl_name (str): name of the table
-    """
-
-    import sqlite3
-
-    if file is None:
-        conn = sqlite3.connect(":memory:")
-    else:
-        conn = sqlite3.connect(file)
-
-    cur = conn.cursor()
-    wildcards = ",".join(["?"] * len(dataframe.columns))
-    data = [tuple(x) for x in dataframe.values]
-    cur.execute(f"DROP TABLE IF EXISTS {tbl_name}")
-    col_str = '"' + '","'.join(dataframe.columns) + '"'
-    cur.execute(f"CREATE TABLE {tbl_name} ({col_str})")
-    cur.executemany(f"insert into {tbl_name} values ({wildcards})", data)
-    conn.commit()
-    cur.close()
-    conn.close()
-
-
-def sieve_files(irradiance_select, treatment_select, module_type_select, database_path):
-
-    """The sieve_files select the file witch names satisfy the foolowing querry:
-         - the irradiance (200,400,...) must be part of the irradiance_select list
-         - the treatment (T0, T1, T2,...) must be part of the treatment_select list
-         - the module type (JINERGY, QCELLS, BOREALIS,...) must be part of the module_type_select list
-         
-        Args:
-           irradiance_select (list of int): list of irradiances to be selected
-           treatment_select (list of str): list of treatments to be selected
-           module_type_select (list of str): list of modules to be selected
-           database_path (path): full path of the data base
-           
-        Return:
-          List of the full path of the selected files.
-        
-    """
-    # Standard library imports
-    import sqlite3
-    from string import Template
-    
-
-    conv2str = lambda list_: str(tuple(list_)).replace(",)", ")")
-
-    conn = sqlite3.connect(database_path)
-    cur = conn.cursor()
-
-    querry_d = Template(
-        """SELECT file_full_path
-                        FROM $table_name 
-                        WHERE module_type  IN $module_type_select
-                        AND irradiance IN $irradiance_select
-                        AND treatment IN $treatment_select
-                        ORDER BY module_type ASC
-                        """
-    )
-
-    cur.execute(
-        querry_d.substitute(
-            {
-                "table_name": DATA_BASE_TABLE_FILE,
-                "module_type_select": conv2str(module_type_select),
-                "irradiance_select": conv2str(irradiance_select),
-                "treatment_select": conv2str(treatment_select),
-            }
-        )
-    )
-
-    querry = [x[0] for x in cur.fetchall()]
-    cur.close()
-    conn.close()
-    return querry
-
 def assess_path_folders(path_root=None):
     
     '''
@@ -415,21 +344,39 @@ def build_files_database(data_folder,verbose=True):
             list_multi_file.append(file)
             file_check = False
     if not file_check:
-        raise Exception(f"The file(s) {' ,'.join(list_multi_file)} has(have) a number of occurrence greater than 1.\nPlease correct before proceeding")
+        print(f"WARNING: the file(s) {' ,'.join(list_multi_file)} has(have) a number of occurrence(s) greater than 1.\nOnly the first occurrence(s) will be retained.\n")
 
 
     df_files_descp  = pd.DataFrame(list_files_descp) # Build the database
 
     database_path = Path(data_folder) / Path(DATA_BASE_NAME)
 
-    df2sqlite(df_files_descp, file=database_path, tbl_name=DATA_BASE_TABLE_FILE)
+    df2sqlite(df_files_descp.drop('status',axis=1), file=database_path, tbl_name=DATA_BASE_TABLE_FILE)
+    suppress_duplicate_database(data_folder)
     
     if verbose:
-        print(f'{len(datafiles_list)} flash test files was detected.\ndf_files_descp and the data base table {DATA_BASE_TABLE_FILE} in {database_path} are built')
+        print(f'{len(datafiles_list)} flash test files detected.\n{len(list_multi_file)} duplicates suppressed\nThe database table {DATA_BASE_TABLE_FILE} in {database_path} is built\n\n')
     
-    return df_files_descp
+    return #df_files_descp
 
-def build_metadata_dataframe(df_files_descp,data_folder):
+def build_metadata_dataframe(data_folder,interactive=False):
+    
+    df_files_descp = sqlite_to_dataframe(data_folder, DATA_BASE_TABLE_FILE)
+    if interactive:
+        # Interactive selection of the modules
+        list_mod_selected = build_modules_list(df_files_descp,data_folder)                                
+
+    else:
+        list_mod_selected = df_files_descp['module_type'].unique()
+        
+    # Extraction from the file database all the filenames related to the selected modules
+    list_files_path = build_modules_filenames(list_mod_selected,data_folder)
+    df_meta = _build_metadata_dataframe(list_files_path,data_folder, df_files_descp)
+    
+    return df_meta
+        
+
+def _build_metadata_dataframe(list_files_path, data_folder, df_files_descp):
 
     '''Building of the dataframe df_meta out of the interactivelly selected module type.
     The df_meta index are the file names without extention (ex: QCELLS901219162417702718_0200W_T0).
@@ -453,49 +400,27 @@ def build_metadata_dataframe(df_files_descp,data_folder):
     #3rd party imports
     import pandas as pd
 
-    # Interactive selection of the modules
-    list_mod_selected = build_modules_list(df_files_descp,data_folder)                                
-    
-    # Extraction from the file database all the filenames related to the selected modules
-    list_files_path = build_modules_filenames(list_mod_selected,data_folder)
-    
-    # Build corrected Isc and Fill Factor
-    isc = []
-    fill_factor = []
-    for file in list_files_path:
-        iv_info = read_flashtest_file(file, parse_all=True)
-        voltage = iv_info.IV0["Voltage"]
-        current = iv_info.IV0["Current"]
-        corrected_current = correct_iv_curve(voltage,current)
-        isc.append(corrected_current[0])
-        fill_factor.append(max(voltage*current)/(corrected_current[0]*max(voltage)))
-    
-    # Builds the list of files basenames without extension
-    list_files_name = [os.path.splitext(os.path.basename(x))[0] for x in list_files_path]
-    list_files_name.sort()
-    
+    df_meta = build_df_meta(list_files_path, df_files_descp)
 
-    # Extraction from the dataframe df_files_descp a sub dataframe related to the selected modules 
-    df_files_descp_copy = df_files_descp
-    df_files_descp_copy.index = [os.path.basename(x).split('.')[0] 
-                                for x in df_files_descp_copy['file_full_path'].tolist()]
-    df_files_descp_copy = df_files_descp_copy.loc[list_files_name,['irradiance','treatment','module_type'] ]
-    
-    # Building of the dataframe df_meta out of the flashtest files metadata 
-    list_dict_metadata = [read_flashtest_file(file,parse_all=False).meta_data for file in list_files_path]
-    df_meta = pd.DataFrame.from_dict(list_dict_metadata)
-    df_meta.index = list_files_name #df_meta['ID']
-    df_meta = df_meta.loc[:,COL_NAMES] # keep only the columns which names COL_NAMES 
-                                       #  defined in PVcharacterization_GUI.py
-    df_meta['Isc_corr'] = isc
-    df_meta['Fill Factor_corr'] = fill_factor
-    
-    # Merges df_meta and df_files_descp_copy to add the tree columns: irradiance, treatment, module_type
-    df_meta = pd.merge(df_meta,df_files_descp_copy,left_index=True, right_index=True)
-
-    # Builds a database for future uses
+    # Builds a database
     database_path = Path(data_folder) / Path(DATA_BASE_NAME)
     df2sqlite(df_meta, file=database_path, tbl_name=DATA_BASE_TABLE_EXP)
+    
+    return df_meta
+
+def build_metadata_df_from_db(data_folder):
+    
+    #3rd party imports
+    import pandas as pd
+
+    # Interactive selection of the modules
+    df_files_descp = sqlite_to_dataframe(data_folder,DATA_BASE_TABLE_FILE) 
+    list_mod_selected = build_modules_list(df_files_descp,data_folder) 
+    
+
+    # Extraction from the file database all the filenames related to the selected modules
+    df_meta = sqlite_to_dataframe(data_folder,DATA_BASE_TABLE_EXP)
+    df_meta = df_meta.query('module_type in @list_mod_selected')
     
     return df_meta
     
@@ -572,7 +497,7 @@ def pv_flashtest_pca(df_meta,scree_plot = False,interactive_plot=False):
         return text
     
     list_params = COL_NAMES.copy()
-    list_params.remove('Title')
+    list_params = [x for x in list_params if x not in ['Title','Fill Factor','Isc']] + ['Fill Factor_corr','Isc_corr']
     X = df_meta[list_params].to_numpy()
     X = X-X.mean(axis=0)
     X = X/np.std(X, axis=0)
@@ -648,7 +573,7 @@ def pv_flashtest_pca(df_meta,scree_plot = False,interactive_plot=False):
         
     return df_meta_pca
     
-def data_dashboard(df_files_descp,data_folder,list_params):
+def data_dashboard(data_folder,list_params):
     
     # Standard library imports
     from pathlib import Path
@@ -656,10 +581,12 @@ def data_dashboard(df_files_descp,data_folder,list_params):
     #3rd party imports
     import pandas as pd
 
-    df_meta = build_metadata_dataframe(df_files_descp,data_folder)
+    df_meta = build_metadata_df_from_db(data_folder)
     df_meta_dashboard = df_meta.pivot(values= list_params,index=['module_type','treatment',],
                                       columns=['irradiance',]) 
     df_meta_dashboard.to_excel(data_folder/Path('exp_summary.xlsx'))
+    
+    print(f'The file {str(data_folder/Path("exp_summary.xlsx"))} has been created')
     
     return df_meta_dashboard
     
@@ -734,30 +661,6 @@ def batch_filename_correction(data_folder, verbose=False):
     
     status = 'Correction done on :'+ ', '.join(list_mod_selected[1:]) + '\nnew name: ' + new_moduletype_name
     return status 
-
-def sqlite_to_dataframe(data_folder,tbl_name):
-    
-    '''Read a database as a dataframe.
-    
-    Args:
-        data_folder (path): path of the folder holding the database
-        tbl_name (str): name of the table
-        
-    Returns:
-         (dataframe): a dataframe containing the database.
-    '''
-    
-    from pathlib import Path
-    import sqlite3
-    import pandas as pd
-    
-    database_path = Path(data_folder) / Path(DATA_BASE_NAME)
-
-    cnx = sqlite3.connect(database_path)
-
-    df = pd.read_sql_query("SELECT * FROM "+tbl_name, cnx)
-    
-    return df
 
 def correct_iv_curve(voltage,current):
     
@@ -911,3 +814,78 @@ def fit_curve(x,y,order=2,n_fit=200):
     p = np.poly1d(poly_coef)
     y_fit = p(x_fit)
     return (x_fit,y_fit,poly_coef)
+
+def add_exp_to_database(data_folder):
+    
+    # Standard library imports 
+    import os 
+    from pathlib import Path
+
+    #3rd party imports
+    import pandas as pd
+
+    df_files_descp = sqlite_to_dataframe(data_folder, DATA_BASE_TABLE_FILE)
+    files_before_add = df_files_descp['file_full_path']
+    new_data_folder = assess_path_folders() 
+
+    files = [os.path.join(new_data_folder,file) for file in os.listdir(new_data_folder) if 
+             Path(file).suffix=='.csv']
+
+    add_files_to_database(files,data_folder)
+    suppress_duplicate_database(data_folder)
+    df_files_descp = sqlite_to_dataframe(data_folder, DATA_BASE_TABLE_FILE)
+    files_after_add = df_files_descp['file_full_path']
+    
+    added_files = list(set(files_after_add) - set(files_before_add))
+    if added_files:
+        x = "\n"
+        print(f'the following {len(added_files)} files has been added :\n {x.join(added_files)}')
+        df_meta = build_df_meta(added_files, df_files_descp)
+        df_meta_concat = pd.concat([sqlite_to_dataframe(data_folder,DATA_BASE_TABLE_EXP),df_meta],ignore_index=True)
+        # Builds a database
+        database_path = Path(data_folder) / Path(DATA_BASE_NAME)
+        df2sqlite(df_meta_concat, file=database_path, tbl_name=DATA_BASE_TABLE_EXP)
+    else:
+        print('The database is already up to date. No file has been added.')
+
+def build_df_meta(list_files, df_files_descp): 
+ 
+    import os
+    
+    import pandas as pd
+    
+    # Build corrected Isc and Fill Factor
+    isc = []
+    fill_factor = []
+    for file in list_files:
+        iv_info = read_flashtest_file(file, parse_all=True)
+        voltage = iv_info.IV0["Voltage"]
+        current = iv_info.IV0["Current"]
+        corrected_current = correct_iv_curve(voltage,current)
+        isc.append(corrected_current[0])
+        fill_factor.append(max(voltage*current)/(corrected_current[0]*max(voltage)))
+
+    # Builds the list of files basenames without extension
+    list_files_name = [os.path.splitext(os.path.basename(x))[0] for x in list_files]
+    list_files_name.sort()
+
+    # Extraction from the dataframe df_files_descp a sub dataframe related to the selected modules 
+    df_files_descp_copy = df_files_descp.copy()
+    df_files_descp_copy.index = [os.path.basename(x).split('.')[0] 
+                                    for x in df_files_descp_copy['file_full_path'].tolist()]
+    df_files_descp_copy = df_files_descp_copy.loc[list_files_name,['irradiance','treatment','module_type']]
+
+    # Building of the dataframe df_meta out of the flashtest files metadata 
+    list_dict_metadata = [read_flashtest_file(file,parse_all=False).meta_data for file in list_files]
+    df_meta = pd.DataFrame.from_dict(list_dict_metadata)
+    df_meta.index = list_files_name #df_meta['ID']
+    df_meta = df_meta.loc[:,COL_NAMES] # keep only the columns which names COL_NAMES 
+                                       #  defined in PVcharacterization_GUI.py
+    df_meta['Isc_corr'] = isc
+    df_meta['Fill Factor_corr'] = fill_factor
+
+    # Merges df_meta and df_files_descp_copy to add the tree columns: irradiance, treatment, module_type
+    df_meta = pd.merge(df_meta,df_files_descp_copy,left_index=True, right_index=True)
+    
+    return df_meta
+        

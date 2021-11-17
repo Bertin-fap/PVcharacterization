@@ -1,0 +1,71 @@
+COL_NAMES:
+- Title
+- Pmax
+- Fill Factor
+- Voc
+- Isc
+- Rseries
+- Rshunt
+- Vpm
+- Ipm
+ENCODING: latin-1
+DATA_BASE_NAME: pv.db
+DATA_BASE_TABLE_EXP: exp_values
+DATA_BASE_TABLE_FILE: PV_descp
+IRRADIANCE_DEFAULT_LIST:
+- 200
+- 200
+- 400
+- 600
+- 800
+- 1000
+- 2000
+- 4000
+NBR_MAX_PARAMS_PLOT: 10
+PARAM_UNIT_DIC:
+  Fill Factor: '1'
+  Ipm: A
+  IrrCorr: W/m2
+  Isc: A
+  Pmax: W
+  Voc: V
+  Vpm: V
+PLOT_PARAMS_DICT:
+  bbox_height: 1
+  bbox_width: 1
+  bbox_x0: 0.25
+  bbox_y0: 0.25
+  fig_height_unit: 2
+  fig_title_height: 3
+  fig_width: 12
+  irr_add_nbr: 0.5
+  labels_fontsize: 12
+  legend_fontsize: 14
+  marker_colors:
+  - '#0000A0'
+  - '#1569C7'
+  - '#78f89d'
+  - '#FFEB3B'
+  - '#E64A19'
+  marker_size: 30
+  markers:
+  - o
+  - +
+  - s
+  - <
+  - '>'
+  - p
+  - '1'
+  - '2'
+  - '3'
+  - '4'
+  ticks_fontsize: 12
+  title_fontsize: 16
+TREATMENT_DEFAULT_LIST:
+- T0
+- T1
+- T2
+- T3
+- T4
+- T5
+WORKING_DIR: PVcharacterization_files\flash test
