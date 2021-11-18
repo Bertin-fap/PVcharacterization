@@ -143,7 +143,7 @@ def read_flashtest_file(filepath, parse_all=True):
                           header=None,
                           encoding=ENCODING) # encoding = latin-1 by default to avoid 
                                              # trouble with u'\xe9' with utf-8
-                                             # https://flutterq.com/unicodedecodeerror-utf8-codec-cant-decode-byte-0xe9-in-position-10-invalid-continuation-byte/
+   # https://flutterq.com/unicodedecodeerror-utf8-codec-cant-decode-byte-0xe9-in-position-10-invalid-continuation-byte/
     
     # Builds the list (ndarray) of the index of the beginnig of the data blocks (I/V and Ref cell) 
     index_data_header = np.where(
@@ -408,14 +408,18 @@ def _build_metadata_dataframe(list_files_path, data_folder, df_files_descp):
     
     return df_meta
 
-def build_metadata_df_from_db(data_folder):
+def build_metadata_df_from_db(data_folder,mode=None):
     
     #3rd party imports
     import pandas as pd
 
     # Interactive selection of the modules
-    df_files_descp = sqlite_to_dataframe(data_folder,DATA_BASE_TABLE_FILE) 
-    list_mod_selected = build_modules_list(df_files_descp,data_folder) 
+    df_files_descp = sqlite_to_dataframe(data_folder,DATA_BASE_TABLE_FILE)
+
+    if mode is None:    
+        list_mod_selected = build_modules_list(df_files_descp,data_folder) 
+    else:
+        list_mod_selected = df_files_descp['module_type'].unique()
     
 
     # Extraction from the file database all the filenames related to the selected modules
