@@ -4,7 +4,7 @@ __all__ = ['COL_NAMES',
            'DATA_BASE_TABLE_FILE',
            'DATA_BASE_TABLE_EXP',
            'ENCODING',
-		   'IRRADIANCE_DEFAULT_LIST',
+           'IRRADIANCE_DEFAULT_LIST',
            'NBR_MAX_PARAMS_PLOT',
            'PLOT_PARAMS_DICT',
            'PARAM_UNIT_DIC',
@@ -60,16 +60,16 @@ def config_pvcharacterization():
     
     
     return (COL_NAMES,
-	        DEFAULT_DIR, 
+            DEFAULT_DIR, 
             DATA_BASE_NAME,
             DATA_BASE_TABLE_FILE,
             DATA_BASE_TABLE_EXP,
             ENCODING,
             IRRADIANCE_DEFAULT_LIST,
             NBR_MAX_PARAMS_PLOT,
-			PARAM_UNIT_DIC,
+            PARAM_UNIT_DIC,
             PLOT_PARAMS_DICT,
-			TREATMENT_DEFAULT_LIST,
+            TREATMENT_DEFAULT_LIST,
             WORKING_DIR)
 
 (COL_NAMES,
