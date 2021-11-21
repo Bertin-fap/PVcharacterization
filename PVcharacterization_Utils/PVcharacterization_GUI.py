@@ -4,13 +4,7 @@ __all__ = ['input_treatment_labels',
            'select_items',]
 
 # Global variables used by Select_multi_items function
-from .PVcharacterization_global import (DEFAULT_DIR,
-                                       DATA_BASE_NAME,
-                                       DATA_BASE_TABLE_FILE,
-                                       COL_NAMES,
-                                       PARAM_UNIT_DIC)
-GEOMETRY_ITEMS_SELECTION = '500x580+50+50'    # Size of the tkinter window
-GEOMETRY_SELECT_DIR = "750x250"
+from .PVcharacterization_global import GLOBAL
 
 def select_items(list_item,title,mode = 'multiple'): 
 
@@ -28,6 +22,8 @@ def select_items(list_item,title,mode = 'multiple'):
     import os
     import tkinter as tk
     
+    GEOMETRY_ITEMS_SELECTION = GLOBAL['GEOMETRY_ITEMS_SELECTION']    # Size of the tkinter window
+
     global val
 
     window = tk.Tk()
@@ -80,6 +76,7 @@ def select_files():
     from tkinter import ttk
     from tkinter import filedialog as fd
 
+    DEFAULT_DIR = GLOBAL['DEFAULT_DIR']
 
     root = tk.Tk()
     root.title('File Dialog')
@@ -133,6 +130,8 @@ def select_data_dir(root,title) :
     import tkinter as tk
     from tkinter import ttk
     from tkinter import filedialog
+    
+    GEOMETRY_SELECT_DIR = GLOBAL('GEOMETRY_SELECT_DIR')
    
     global in_dir, button
    

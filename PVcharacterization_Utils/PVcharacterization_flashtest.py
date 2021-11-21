@@ -23,15 +23,7 @@ __all__ = [
 ]
 
 #Internal imports 
-from .PVcharacterization_global import (COL_NAMES,
-                                        DATA_BASE_NAME,
-                                        DATA_BASE_TABLE_FILE,
-                                        DATA_BASE_TABLE_EXP,
-                                        DEFAULT_DIR,
-                                        ENCODING,
-                                        IRRADIANCE_DEFAULT_LIST,
-                                        PARAM_UNIT_DIC,
-                                        TREATMENT_DEFAULT_LIST,)
+from .PVcharacterization_global import GLOBAL
 from .PVcharacterization_GUI import (select_data_dir,
                                      select_items,)
 from .PVcharacterization_database import (add_files_to_database,
@@ -131,6 +123,8 @@ def read_flashtest_file(filepath, parse_all=True):
     # 3rd party imports
     import numpy as np
     import pandas as pd
+    
+    ENCODING = GLOBAL['ENCODING']
 
     data_struct = namedtuple(
         "PV_module_test",
@@ -324,6 +318,9 @@ def build_files_database(data_folder,verbose=True):
     # 3rd party import
     import pandas as pd
     
+    DATA_BASE_NAME = GLOBAL['DATA_BASE_NAME']
+    DATA_BASE_TABLE_FILE = GLOBAL['DATA_BASE_TABLE_FILE']
+    
     datafiles_list = list(Path(data_folder).rglob("*.csv")) # Recursive collection all the .csv lies
     
     if not datafiles_list:
@@ -360,6 +357,8 @@ def build_files_database(data_folder,verbose=True):
     return #df_files_descp
 
 def build_metadata_dataframe(data_folder,interactive=False):
+
+    DATA_BASE_TABLE_FILE = GLOBAL['DATA_BASE_TABLE_FILE']
     
     df_files_descp = sqlite_to_dataframe(data_folder, DATA_BASE_TABLE_FILE)
     if interactive:
@@ -399,6 +398,9 @@ def _build_metadata_dataframe(list_files_path, data_folder, df_files_descp):
 
     #3rd party imports
     import pandas as pd
+    
+    DATA_BASE_NAME = GLOBAL['DATA_BASE_NAME']
+    DATA_BASE_TABLE_EXP = GLOBAL['DATA_BASE_TABLE_EXP']
 
     df_meta = build_df_meta(list_files_path, df_files_descp)
 
@@ -412,6 +414,9 @@ def build_metadata_df_from_db(data_folder,mode=None):
     
     #3rd party imports
     import pandas as pd
+    
+    DATA_BASE_TABLE_FILE = GLOBAL['DATA_BASE_TABLE_FILE']
+    DATA_BASE_TABLE_EXP = GLOBAL['DATA_BASE_TABLE_EXP']
 
     # Interactive selection of the modules
     df_files_descp = sqlite_to_dataframe(data_folder,DATA_BASE_TABLE_FILE)
@@ -466,7 +471,11 @@ def build_modules_filenames(list_mod_selected,data_folder):
     
     # Standard library imports
     import os
-    from pathlib import Path                           
+    from pathlib import Path   
+
+    DATA_BASE_NAME = GLOBAL['DATA_BASE_NAME'] 
+    IRRADIANCE_DEFAULT_LIST = GLOBAL['IRRADIANCE_DEFAULT_LIST']  
+    TREATMENT_DEFAULT_LIST = GLOBAL['TREATMENT_DEFAULT_LIST']    
     
     # Extract from the file database all the filenames related to the selected modules
     database_path = Path(data_folder) / Path(DATA_BASE_NAME)
@@ -490,6 +499,8 @@ def pv_flashtest_pca(df_meta,scree_plot = False,interactive_plot=False):
     import pandas as pd
     import plotly.express as px
     import seaborn as sns
+    
+    COL_NAMES = GLOBAL['COL_NAMES']
     
     def title(M_items_per_row = 3 ):
         '''Builds th PCA plot title out of the dict dict_module_type with M_items_per_row module type name
@@ -639,6 +650,8 @@ def batch_filename_correction(data_folder, verbose=False):
 
     # Standard library imports
     import os
+    
+    DATA_BASE_TABLE_FILE = GLOBAL['DATA_BASE_TABLE_FILE']
 
     # Get dataframe describing the experimental files
     #df_files_descp = build_files_database(data_folder, verbose=False)
@@ -827,6 +840,10 @@ def add_exp_to_database(data_folder):
 
     #3rd party imports
     import pandas as pd
+    
+    DATA_BASE_NAME = GLOBAL['DATA_BASE_NAME']
+    DATA_BASE_TABLE_FILE = GLOBAL['DATA_BASE_TABLE_FILE']
+    DATA_BASE_TABLE_EXP = GLOBAL['DATA_BASE_TABLE_EXP']
 
     df_files_descp = sqlite_to_dataframe(data_folder, DATA_BASE_TABLE_FILE)
     files_before_add = df_files_descp['file_full_path']
@@ -858,6 +875,7 @@ def build_df_meta(list_files, df_files_descp):
     
     import pandas as pd
     
+    COL_NAMES = GLOBAL['COL_NAMES']
     # Build corrected Isc and Fill Factor
     isc = []
     fill_factor = []

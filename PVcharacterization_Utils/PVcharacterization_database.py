@@ -5,10 +5,8 @@ __all__ = [
     "suppress_duplicate_database",
     "sqlite_to_dataframe",]
    
-from .PVcharacterization_global import (DATA_BASE_NAME,
-                                        DATA_BASE_TABLE_FILE,
-                                        DATA_BASE_TABLE_EXP,
-                                        )                                      
+from .PVcharacterization_global import GLOBAL                                    
+
 
 def add_files_to_database(files, data_folder):
     
@@ -20,6 +18,9 @@ def add_files_to_database(files, data_folder):
     from string import Template
     
     from .PVcharacterization_flashtest import parse_filename 
+    
+    DATA_BASE_NAME = GLOBAL['DATA_BASE_NAME']
+    DATA_BASE_TABLE_FILE = GLOBAL['DATA_BASE_TABLE_FILE']
 
     database_path = Path(data_folder) / Path(DATA_BASE_NAME)
     conn = sqlite3.connect(database_path)
@@ -46,6 +47,9 @@ def suppress_duplicate_database(data_folder):
     import sqlite3
     from pathlib import Path
     from string import Template
+    
+    DATA_BASE_NAME = GLOBAL['DATA_BASE_NAME']
+    DATA_BASE_TABLE_FILE = GLOBAL['DATA_BASE_TABLE_FILE']    
     
     database_path = Path(data_folder) / Path(DATA_BASE_NAME)
     conn = sqlite3.connect(database_path)
@@ -83,6 +87,8 @@ def sqlite_to_dataframe(data_folder,tbl_name):
     from pathlib import Path
     import sqlite3
     import pandas as pd
+    
+    DATA_BASE_NAME = GLOBAL['DATA_BASE_NAME']
     
     database_path = Path(data_folder) / Path(DATA_BASE_NAME)
 
@@ -141,6 +147,7 @@ def sieve_files(irradiance_select, treatment_select, module_type_select, databas
     import sqlite3
     from string import Template
     
+    DATA_BASE_TABLE_FILE = GLOBAL['DATA_BASE_TABLE_FILE']
 
     conv2str = lambda list_: str(tuple(list_)).replace(",)", ")")
 

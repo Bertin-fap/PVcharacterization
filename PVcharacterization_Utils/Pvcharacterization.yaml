@@ -1,4 +1,4 @@
-COL_NAMES:
+COL_NAMES: # list of flash test parameters extracted from ths .csv header of the flash test data files
 - Title
 - Pmax
 - Fill Factor
@@ -8,11 +8,13 @@ COL_NAMES:
 - Rshunt
 - Vpm
 - Ipm
-ENCODING: latin-1
 DATA_BASE_NAME: pv.db
 DATA_BASE_TABLE_EXP: exp_values
 DATA_BASE_TABLE_FILE: PV_descp
-IRRADIANCE_DEFAULT_LIST:
+ENCODING: latin-1 # Used to read the .csv flash test files
+GEOMETRY_ITEMS_SELECTION: 500x580+50+50    # Size of the tkinter window
+GEOMETRY_SELECT_DIR: 750x250
+IRRADIANCE_DEFAULT_LIST: # List of irradiance expressed in W/m^2
 - 200
 - 200
 - 400
@@ -21,8 +23,7 @@ IRRADIANCE_DEFAULT_LIST:
 - 1000
 - 2000
 - 4000
-NBR_MAX_PARAMS_PLOT: 10
-PARAM_UNIT_DIC:
+PARAM_UNIT_DIC: # Units of the parameters
   Fill Factor: '1'
   Ipm: A
   IrrCorr: W/m2
@@ -69,3 +70,4 @@ TREATMENT_DEFAULT_LIST:
 - T4
 - T5
 WORKING_DIR: PVcharacterization_files\flash test
+

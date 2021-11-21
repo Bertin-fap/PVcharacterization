@@ -3,14 +3,7 @@ __all_ =['construct_x_y',
          'plot_params_diff',
          ]
 
-from .PVcharacterization_global import (PARAM_UNIT_DIC,
-                                        TREATMENT_DEFAULT_LIST,
-                                        COL_NAMES,
-                                        DATA_BASE_NAME,
-                                        NBR_MAX_PARAMS_PLOT,
-                                        PARAM_UNIT_DIC,
-                                        PLOT_PARAMS_DICT,
-                                        )
+from .PVcharacterization_global import GLOBAL
 from .PVcharacterization_GUI import (select_items,
                                      select_files)
 from .PVcharacterization_flashtest import (correct_iv_curve,
@@ -57,6 +50,8 @@ def _plot_params(params,
     import matplotlib.pyplot as plt
     import numpy as np
     import pandas as pd
+    
+    TREATMENT_DEFAULT_LIST = GLOBAL['TREATMENT_DEFAULT_LIST']
     
     params_nb = len(params)
     assert params_nb>1, "The number of parameters must be greater than one"
@@ -273,6 +268,10 @@ def plot_params_diff(df_meta,
     
     #3rd party imports
     import pandas as pd
+    
+    COL_NAMES = GLOBAL['COL_NAMES']
+    PLOT_PARAMS_DICT = GLOBAL['PLOT_PARAMS_DICT']
+    NBR_MAX_PARAMS_PLOT = len(GLOBAL['PLOT_PARAMS_DICT']['markers'])
 
     list_allowed_params = list(COL_NAMES)+['Isc_corr','Fill Factor_corr']
     list_allowed_params.remove('Title')
@@ -323,6 +322,8 @@ def plot_iv_curves(irr_select,name_select,trt_select,data_folder):
     # 3rd party imports
     import pandas as pd
     import plotly.express as px
+    
+    DATA_BASE_NAME = GLOBAL['DATA_BASE_NAME']
 
     database_path = Path(data_folder) / Path(DATA_BASE_NAME)
 
@@ -356,6 +357,8 @@ def plot_iv_power(file=None):
     # 3rd party import
     import matplotlib.pyplot as plt
     import numpy as np
+    
+    PARAM_UNIT_DIC = GLOBAL['PARAM_UNIT_DIC']
 
     if file is None:
         file = select_files()
