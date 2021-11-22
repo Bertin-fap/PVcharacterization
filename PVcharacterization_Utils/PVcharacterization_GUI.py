@@ -181,17 +181,17 @@ def input_treatment_labels(list_diff):
     root = tk.Tk()
     root.title("Python - Basic Register Form")
     
-    FONT = ('arial', 18)
-    FONT1 = ('arial', 20)
+    FONT = ('arial', 12)
+    FONT1 = ('arial', 15)
 
     width = 640
-    height = 480
+    height = 600
     screen_width = root.winfo_screenwidth()
     screen_height = root.winfo_screenheight()
     x = (screen_width/2) - (width/2)
     y = (screen_height/2) - (height/2)
     root.geometry("%dx%d+%d+%d" % (width, height, x, y))
-    root.resizable(0, 0)
+    root.resizable(1, 1)
 
     def Register():
         global dict_label,list_trt

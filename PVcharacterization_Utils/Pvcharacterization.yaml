@@ -69,5 +69,8 @@ TREATMENT_DEFAULT_LIST:
 - T3
 - T4
 - T5
+- T6
+- T7
+- T8
 WORKING_DIR: PVcharacterization_files\flash test
 
