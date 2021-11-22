@@ -131,7 +131,7 @@ def select_data_dir(root,title) :
     from tkinter import ttk
     from tkinter import filedialog
     
-    GEOMETRY_SELECT_DIR = GLOBAL('GEOMETRY_SELECT_DIR')
+    GEOMETRY_SELECT_DIR = GLOBAL['GEOMETRY_SELECT_DIR']
    
     global in_dir, button
    
