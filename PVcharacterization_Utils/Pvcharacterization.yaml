@@ -8,6 +8,8 @@ COL_NAMES: # list of flash test parameters extracted from ths .csv header of the
 - Rshunt
 - Vpm
 - Ipm
+- Fill Factor_corr
+- Isc_corr
 DATA_BASE_NAME: pv.db
 DATA_BASE_TABLE_EXP: exp_values
 DATA_BASE_TABLE_FILE: PV_descp
@@ -25,9 +27,11 @@ IRRADIANCE_DEFAULT_LIST: # List of irradiance expressed in W/m^2
 - 4000
 PARAM_UNIT_DIC: # Units of the parameters
   Fill Factor: '1'
+  Fill Factor_corr: '1'
   Ipm: A
   IrrCorr: W/m2
   Isc: A
+  Isc_corr: A
   Pmax: W
   Voc: V
   Vpm: V
