@@ -50,7 +50,7 @@ def read_flashtest_file(filepath, parse_all=True):
                 -0.740710    1.8377770
                 -0.740387    1.8374640
                 -0.734611    1.8376460
-                ...          ....
+                ...          ....
                 Ref Cell:   Lamp I:
                 199.9875    200.0105
                 199.9824    200.1674
@@ -236,7 +236,7 @@ def parse_filename(file,warning=False):
     from collections import namedtuple
     import re
     
-    FileNameInfo = namedtuple("FileNameInfo", "irradiance treatment module_type file_full_path status")
+    FileNameInfo = namedtuple("FileNameInfo", "exp_id irradiance treatment module_type file_full_path status")
     re_irradiance = re.compile(r"(?<=\_)\d{3,4}(?=W\_)")
     re_treatment = re.compile(r"(?<=\_)T\d{1}(?=\.csv)")
     re_module_type = re.compile(r"[A-Z-\_]*\d{1,50}(?=\_)")
@@ -264,6 +264,7 @@ def parse_filename(file,warning=False):
         print(f'Warning: the file {file}  is not a flash test format')
         
     FileInfo = FileNameInfo(
+        exp_id=f'{module_type}_{irradiance}W_{treatment}',
         irradiance=irradiance ,
         treatment=treatment,
         module_type=module_type,
@@ -370,12 +371,12 @@ def build_metadata_dataframe(data_folder,interactive=False):
         
     # Extraction from the file database all the filenames related to the selected modules
     list_files_path = build_modules_filenames(list_mod_selected,data_folder)
-    df_meta = _build_metadata_dataframe(list_files_path,data_folder, df_files_descp)
+    df_meta = _build_metadata_dataframe(list_files_path,data_folder)
     
     return df_meta
         
 
-def _build_metadata_dataframe(list_files_path, data_folder, df_files_descp):
+def _build_metadata_dataframe(list_files_path, data_folder):
 
     '''Building of the dataframe df_meta out of the interactivelly selected module type.
     The df_meta index are the file names without extention (ex: QCELLS901219162417702718_0200W_T0).
@@ -402,7 +403,7 @@ def _build_metadata_dataframe(list_files_path, data_folder, df_files_descp):
     DATA_BASE_NAME = GLOBAL['DATA_BASE_NAME']
     DATA_BASE_TABLE_EXP = GLOBAL['DATA_BASE_TABLE_EXP']
 
-    df_meta = build_df_meta(list_files_path, df_files_descp)
+    df_meta = build_df_meta(list_files_path)
 
     # Builds a database
     database_path = Path(data_folder) / Path(DATA_BASE_NAME)
@@ -512,7 +513,7 @@ def pv_flashtest_pca(df_meta,scree_plot = False,interactive_plot=False):
         return text
     
     list_params = COL_NAMES.copy()
-    list_params = [x for x in list_params if x not in ['Title','Fill Factor','Isc']] + ['Fill Factor_corr','Isc_corr']
+    list_params = [x for x in list_params if x not in ['Title','Fill Factor','Isc','exp_id']] + ['Fill Factor_corr','Isc_corr']
     X = df_meta[list_params].to_numpy()
     X = X-X.mean(axis=0)
     X = X/np.std(X, axis=0)
@@ -861,7 +862,7 @@ def add_exp_to_database(data_folder):
     if added_files:
         x = "\n"
         print(f'the following {len(added_files)} files has been added :\n {x.join(added_files)}')
-        df_meta = build_df_meta(added_files, df_files_descp)
+        df_meta = build_df_meta(added_files)
         df_meta_concat = pd.concat([sqlite_to_dataframe(data_folder,DATA_BASE_TABLE_EXP),df_meta],ignore_index=True)
         # Builds a database
         database_path = Path(data_folder) / Path(DATA_BASE_NAME)
@@ -869,45 +870,54 @@ def add_exp_to_database(data_folder):
     else:
         print('The database is already up to date. No file has been added.')
 
-def build_df_meta(list_files, df_files_descp): 
+def build_df_meta(list_files): 
  
     import os
     
     import pandas as pd
     
     COL_NAMES = GLOBAL['COL_NAMES']
-    # Build corrected Isc and Fill Factor
-    isc = []
-    fill_factor = []
+    
+    # Building of the dataframe df_meta out of the flashtest files 
+    isc_corr = []
+    fill_factor_corr = []
+    list_files_name = []  # List of files basenames without extension
+    list_dict_metadata = []
+    list_exp_id = []
+    list_irradiance =[]
+    list_treatment = []
+    list_module_type = []
+    
     for file in list_files:
         iv_info = read_flashtest_file(file, parse_all=True)
+        list_dict_metadata.append(iv_info.meta_data)
+      
+        
+        # Compure the corrected Isc current and Fill Factor out of the I/V curves
         voltage = iv_info.IV0["Voltage"]
         current = iv_info.IV0["Current"]
         corrected_current = correct_iv_curve(voltage,current)
-        isc.append(corrected_current[0])
-        fill_factor.append(max(voltage*current)/(corrected_current[0]*max(voltage)))
-
-    # Builds the list of files basenames without extension
-    list_files_name = [os.path.splitext(os.path.basename(x))[0] for x in list_files]
-    list_files_name.sort()
-
-    # Extraction from the dataframe df_files_descp a sub dataframe related to the selected modules 
-    df_files_descp_copy = df_files_descp.copy()
-    df_files_descp_copy.index = [os.path.basename(x).split('.')[0] 
-                                    for x in df_files_descp_copy['file_full_path'].tolist()]
-    df_files_descp_copy = df_files_descp_copy.loc[list_files_name,['irradiance','treatment','module_type']]
-
-    # Building of the dataframe df_meta out of the flashtest files metadata 
-    list_dict_metadata = [read_flashtest_file(file,parse_all=False).meta_data for file in list_files]
+        isc_corr.append(corrected_current[0])
+        fill_factor_corr.append(max(voltage*current)/(corrected_current[0]*max(voltage)))
+        list_files_name.append(os.path.splitext(os.path.basename(file))[0])
+        
+        # Add exp_id, irradiance, treatment, module_type from the filename prsing 
+        file_info = parse_filename(file)
+        list_exp_id.append(file_info.exp_id)
+        list_irradiance.append(file_info.irradiance)
+        list_treatment.append(file_info.treatment)
+        list_module_type.append(file_info.module_type)
+        
+        
     df_meta = pd.DataFrame.from_dict(list_dict_metadata)
-    df_meta.index = list_files_name #df_meta['ID']
+    df_meta.index = list_files_name    #df_meta['ID']
     df_meta = df_meta.loc[:,COL_NAMES] # keep only the columns which names COL_NAMES 
                                        #  defined in PVcharacterization_GUI.py
-    df_meta['Isc_corr'] = isc
-    df_meta['Fill Factor_corr'] = fill_factor
-
-    # Merges df_meta and df_files_descp_copy to add the tree columns: irradiance, treatment, module_type
-    df_meta = pd.merge(df_meta,df_files_descp_copy,left_index=True, right_index=True)
+    df_meta['Isc_corr'] = isc_corr
+    df_meta['Fill Factor_corr'] = fill_factor_corr
+    df_meta['irradiance'] = list_irradiance
+    df_meta['treatment'] = list_treatment
+    df_meta['module_type'] = list_module_type
+    df_meta.insert(0, "exp_id", list_exp_id)
     
     return df_meta
-        

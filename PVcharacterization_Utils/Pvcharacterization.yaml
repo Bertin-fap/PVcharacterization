@@ -8,8 +8,6 @@ COL_NAMES: # list of flash test parameters extracted from ths .csv header of the
 - Rshunt
 - Vpm
 - Ipm
-- Fill Factor_corr
-- Isc_corr
 DATA_BASE_NAME: pv.db
 DATA_BASE_TABLE_EXP: exp_values
 DATA_BASE_TABLE_FILE: PV_descp

@@ -31,7 +31,7 @@ def add_files_to_database(files, data_folder):
     
     for file in files:
         parse = parse_filename(file)
-        value = f"{parse.irradiance},'{parse.treatment}','{parse.module_type}','{parse.file_full_path}'"
+        value = f"'{parse.exp_id}',{parse.irradiance},'{parse.treatment}','{parse.module_type}','{parse.file_full_path}'"
         cursor.execute(template.substitute({'table': DATA_BASE_TABLE_FILE,
                                             'col_names':col_name,
                                             'values':value}))
