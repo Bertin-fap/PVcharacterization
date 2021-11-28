@@ -280,7 +280,7 @@ def assess_path_folders(path_root=None):
     Interactivelly sets the path to the working folder
     
     Args:
-      path_root (str): if none the root for the interactive selection is the user path home othewise path_root
+      path_root (str): if none the root for the interactive selection is the user path home otherwise path_root
       
     Returns:
       The data folder name.
@@ -289,12 +289,31 @@ def assess_path_folders(path_root=None):
     # Standard library imports
     from pathlib import Path
     
+    # Local imports
+    from .PVcharacterization_sys import DISPLAYS
+    
     if path_root is None:
         root = Path.home()
     else:
         root = path_root
+        
+    # Set the GUI display
+    gui_disp = [i for i in range(len(DISPLAYS)) if DISPLAYS[i]['is_primary']][0]
+    # Get the prime display choice
+    # TO DO: replace input by a GUI to select the activ_display
+    disp_select = input('Select Id of gui prime-display '+
+                   '(value: 0 to '+ str(len(DISPLAYS)-1)+
+                  '; default:'+ str(gui_disp)+')')
+    if disp_select: gui_disp = int(disp_select)
+        
+    # Setting the GUI titles
+    gui_titles = {'main':   'Folder selection window',
+                  'result': 'Selected folder'}
+    gui_buttons = ['SELECTION','HELP']
 
-    data_folder = select_data_dir(root,'Select the root folder')  # Selection of the root folder
+    data_folder = select_data_dir(root,gui_titles,gui_buttons,gui_disp)  # Selection of the root folder
+    #select_data_dir(in_dir, titles, buttons_labels, 
+    #                prime_disp=0, widget_ratio=1.2, button_ratio=2.5, max_lines_nb=3)
     
     return data_folder
 

@@ -1,4 +1,4 @@
-__all__ = ['GLOBAL',]
+__all__ = ['change_config_pvcharacterization', 'GLOBAL',]
            
 def change_config_pvcharacterization(data_folder):
 
@@ -21,7 +21,7 @@ def change_config_pvcharacterization(data_folder):
     with open(path_config_file, 'w') as file:
         outputs = yaml.dump(GLOBAL, file)
 
-def config_pvcharacterization():
+def _config_pvcharacterization():
 
     from pathlib import Path
 
@@ -40,5 +40,5 @@ def config_pvcharacterization():
             
 
 
-GLOBAL = config_pvcharacterization()
+GLOBAL = _config_pvcharacterization()
  
