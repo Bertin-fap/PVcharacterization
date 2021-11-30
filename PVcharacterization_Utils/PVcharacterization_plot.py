@@ -8,8 +8,9 @@ from .PVcharacterization_GUI import (select_items,
                                      select_files)
 from .PVcharacterization_flashtest import (correct_iv_curve,
                                            parse_filename,
-                                           read_flashtest_file,
-                                           sieve_files,)
+                                           read_flashtest_file,)
+
+from .PVcharacterization_database import sieve_files
 
 def _plot_params(params,
                  list_modules_type,
@@ -303,7 +304,7 @@ def plot_params_diff(df_meta,
                 dic_trt_meaning=dic_trt_meaning,
                 long_label=long_label,) 
     
-def plot_iv_curves(irr_select,name_select,trt_select,data_folder):
+def plot_iv_curves(irr_select,name_select,trt_select,working_dir):
 
     '''
     Plot of the I/V curves of the modules type with: names in the list name_select,
@@ -313,8 +314,7 @@ def plot_iv_curves(irr_select,name_select,trt_select,data_folder):
         irr_select (list of int): list of irradiance to be plotted
         name_select (list of str): list of module type names to be plotted
         trt_select (list of str): list of treatments to be plotted
-        data_folder (str): full pathname of the folder containing the flashtest files
-    '''
+        working_dir (str): the folder containing the database     '''
     
     # Standard library imports
     from pathlib import Path
@@ -325,7 +325,7 @@ def plot_iv_curves(irr_select,name_select,trt_select,data_folder):
     
     DATA_BASE_NAME = GLOBAL['DATA_BASE_NAME']
 
-    database_path = Path(data_folder) / Path(DATA_BASE_NAME)
+    database_path = Path(working_dir) / Path(DATA_BASE_NAME)
 
     list_files_path = sieve_files(irr_select,trt_select,name_select,database_path)
     list_dataframe = []

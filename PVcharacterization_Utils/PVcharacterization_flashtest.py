@@ -317,13 +317,14 @@ def assess_path_folders(path_root=None):
     
     return data_folder
 
-def build_files_database(data_folder,verbose=True):
+def build_files_database(db_folder,ft_folder,verbose=True):
     ''' 
     Build the table DATA_BASE_TABLE_FILE in the data base DATA_BASE_NAME with the following fields
     irradiance, treatment, module_type, file_full_path.
     
     Args:
-        data_folder (path):  path  of the folder containing the experimental flashtest files.
+       db_folder (path):  path  of the folder containing the database.
+       ft_folder (path):  path  of the folder containing the experimental flashtest files.
         
     Returns:
         (data frame) dataframe df_files_descp with the following columns: irradiance, treatment, module_type, 
@@ -341,10 +342,10 @@ def build_files_database(data_folder,verbose=True):
     DATA_BASE_NAME = GLOBAL['DATA_BASE_NAME']
     DATA_BASE_TABLE_FILE = GLOBAL['DATA_BASE_TABLE_FILE']
     
-    datafiles_list = list(Path(data_folder).rglob("*.csv")) # Recursive collection all the .csv lies
+    datafiles_list = list(Path(ft_folder).rglob("*.csv")) # Recursive collection all the .csv lies
     
     if not datafiles_list:
-        raise Exception(f"No .csv files detected in {data_folder} and sub folders")
+        raise Exception(f"No .csv files detected in {ft_folder} and sub folders")
         
     list_files_descp=[]
     for file in datafiles_list:
@@ -366,10 +367,10 @@ def build_files_database(data_folder,verbose=True):
 
     df_files_descp  = pd.DataFrame(list_files_descp) # Build the database
 
-    database_path = Path(data_folder) / Path(DATA_BASE_NAME)
+    database_path = Path(db_folder) / Path(DATA_BASE_NAME)
 
     df2sqlite(df_files_descp.drop('status',axis=1), file=database_path, tbl_name=DATA_BASE_TABLE_FILE)
-    suppress_duplicate_database(data_folder)
+    suppress_duplicate_database(db_folder)
     
     if verbose:
         print(f'{len(datafiles_list)} flash test files detected.\n{len(list_multi_file)} duplicates suppressed\nThe database table {DATA_BASE_TABLE_FILE} in {database_path} is built\n\n')
@@ -383,7 +384,7 @@ def build_metadata_dataframe(data_folder,interactive=False):
     df_files_descp = sqlite_to_dataframe(data_folder, DATA_BASE_TABLE_FILE)
     if interactive:
         # Interactive selection of the modules
-        list_mod_selected = build_modules_list(df_files_descp,data_folder)                                
+        list_mod_selected = build_modules_list(df_files_descp)                                
 
     else:
         list_mod_selected = df_files_descp['module_type'].unique()
@@ -406,7 +407,7 @@ def _build_metadata_dataframe(list_files_path, data_folder):
 
     Args:
         df_files_descp (dataframe): dataframe built by the function build_files_database 
-        data_folder (path):  path  of the folder containing the experimental flashtest files.
+        data_folder (path):  path  of the folder containing the database.
 
     Returns:
         (dataframe)  : dataframe of the experimental data  
@@ -422,7 +423,7 @@ def _build_metadata_dataframe(list_files_path, data_folder):
     DATA_BASE_NAME = GLOBAL['DATA_BASE_NAME']
     DATA_BASE_TABLE_EXP = GLOBAL['DATA_BASE_TABLE_EXP']
 
-    df_meta = build_df_meta(list_files_path)
+    df_meta = _build_df_meta(list_files_path)
 
     # Builds a database
     database_path = Path(data_folder) / Path(DATA_BASE_NAME)
@@ -442,7 +443,7 @@ def build_metadata_df_from_db(data_folder,mode=None):
     df_files_descp = sqlite_to_dataframe(data_folder,DATA_BASE_TABLE_FILE)
 
     if mode is None:    
-        list_mod_selected = build_modules_list(df_files_descp,data_folder) 
+        list_mod_selected = build_modules_list(df_files_descp) 
     else:
         list_mod_selected = df_files_descp['module_type'].unique()
     
@@ -453,13 +454,12 @@ def build_metadata_df_from_db(data_folder,mode=None):
     
     return df_meta
     
-def build_modules_list(df_files_descp,data_folder):
+def build_modules_list(df_files_descp):
 
     '''Interactive selection of modules type out of the dataframe df_meta.
    
     Args:
         df_files_descp (dataframe): dataframe built by the function build_files_database 
-        data_folder (path):  path  of the folder containing the experimental flashtest files. 
        
     Returns:
         list_mod_selected (list os str): list of selected modules type.
@@ -678,7 +678,7 @@ def batch_filename_correction(data_folder, verbose=False):
     df_files_descp = sqlite_to_dataframe(data_folder,DATA_BASE_TABLE_FILE)
    
     # Select the module types which names has to be corrected
-    list_mod_selected = build_modules_list(df_files_descp,data_folder)
+    list_mod_selected = build_modules_list(df_files_descp)
 
     # Choose the longest module type name
     list_mod_selected =sorted(list_mod_selected, key=len, reverse=True) # Descending sort by length of items
@@ -881,7 +881,7 @@ def add_exp_to_database(data_folder):
     if added_files:
         x = "\n"
         print(f'the following {len(added_files)} files has been added :\n {x.join(added_files)}')
-        df_meta = build_df_meta(added_files)
+        df_meta = _build_df_meta(added_files)
         df_meta_concat = pd.concat([sqlite_to_dataframe(data_folder,DATA_BASE_TABLE_EXP),df_meta],ignore_index=True)
         # Builds a database
         database_path = Path(data_folder) / Path(DATA_BASE_NAME)
@@ -889,7 +889,7 @@ def add_exp_to_database(data_folder):
     else:
         print('The database is already up to date. No file has been added.')
 
-def build_df_meta(list_files): 
+def _build_df_meta(list_files): 
  
     import os
     

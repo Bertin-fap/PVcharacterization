@@ -12,6 +12,7 @@ DATA_BASE_NAME: pv.db
 DATA_BASE_TABLE_EXP: exp_values
 DATA_BASE_TABLE_FILE: PV_descp
 ENCODING: latin-1
+FLASHTEST_DIR: C:\Users\JR239608\Documents\P\DTSTECH\LSA\DATA2
 FOLDER_SELECTION_HELP_TEXT: The selected folder is edited. For changing the selection,
   just make a new selection. If the selection is valid, please close the window.
 GEOMETRY_ITEMS_SELECTION: 500x580+50+50
@@ -77,4 +78,4 @@ TREATMENT_DEFAULT_LIST:
 - T6
 - T7
 - T8
-WORKING_DIR: PVcharacterization_files/flash test
+WORKING_DIR: C:\Users\JR239608\Documents\P\DTSTECH\LSA\DATA1
