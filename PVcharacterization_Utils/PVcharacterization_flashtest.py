@@ -1,8 +1,8 @@
-""" Creation: 2021.09.07
-    Last update: 2021.10.21
+''' Creation: 2021.09.07
+    Last update: 2021.12.01
     
     Useful functions for correctly parsing the aging data files
-"""
+'''
 __all__ = [
     "add_exp_to_database",
     "assess_path_folders",
@@ -35,7 +35,7 @@ from .PVcharacterization_database import (add_files_to_database,
                                        
 def read_flashtest_file(filepath, parse_all=True):
 
-    """
+    '''
     The function `read_flashtest_file` reads a csv file organized as follow:
     
                 ==========  =================================
@@ -115,7 +115,7 @@ def read_flashtest_file(filepath, parse_all=True):
     Returns:
         data (namedtuple): results of the file parsing (see summary)
     
-    """
+    '''
 
     # Standard library imports
     from collections import namedtuple
@@ -207,7 +207,7 @@ def read_flashtest_file(filepath, parse_all=True):
 
 def parse_filename(file,warning=False):
 
-    """
+    '''
     Let the string "file" structured as follow:
       '~/XXXXXXX<ddddddddddddd>_<dddd>W_T<d>.csv'
     where <> is a placeholder, d a digit, X a capital letter and ~ the relative or absolute path of the file
@@ -231,7 +231,8 @@ def parse_filename(file,warning=False):
         status= True
      
     
-    """
+    '''
+    
     # Standard library imports
     from collections import namedtuple
     import re
@@ -311,11 +312,9 @@ def assess_path_folders(path_root=None):
                   'result': 'Selected folder'}
     gui_buttons = ['SELECTION','HELP']
 
-    data_folder = select_data_dir(root,gui_titles,gui_buttons,gui_disp)  # Selection of the root folder
-    #select_data_dir(in_dir, titles, buttons_labels, 
-    #                prime_disp=0, widget_ratio=1.2, button_ratio=2.5, max_lines_nb=3)
+    working_dir = select_data_dir(root,gui_titles,gui_buttons,gui_disp)  # Selection of the root folder
     
-    return data_folder
+    return working_dir
 
 def build_files_database(db_folder,ft_folder,verbose=True):
     ''' 
@@ -377,11 +376,17 @@ def build_files_database(db_folder,ft_folder,verbose=True):
     
     return #df_files_descp
 
-def build_metadata_dataframe(data_folder,interactive=False):
+def build_metadata_dataframe(working_dir,interactive=False):
+
+    '''
+    Args:
+       working_dir (path): path of the folder holding the database
+       interactive (boolean): if True select interactivelly the modules otherwise takes all the modules
+    '''
 
     DATA_BASE_TABLE_FILE = GLOBAL['DATA_BASE_TABLE_FILE']
     
-    df_files_descp = sqlite_to_dataframe(data_folder, DATA_BASE_TABLE_FILE)
+    df_files_descp = sqlite_to_dataframe(working_dir, DATA_BASE_TABLE_FILE)
     if interactive:
         # Interactive selection of the modules
         list_mod_selected = build_modules_list(df_files_descp)                                
@@ -390,13 +395,13 @@ def build_metadata_dataframe(data_folder,interactive=False):
         list_mod_selected = df_files_descp['module_type'].unique()
         
     # Extraction from the file database all the filenames related to the selected modules
-    list_files_path = build_modules_filenames(list_mod_selected,data_folder)
-    df_meta = _build_metadata_dataframe(list_files_path,data_folder)
+    list_files_path = build_modules_filenames(list_mod_selected,working_dir)
+    df_meta = _build_metadata_dataframe(list_files_path,working_dir)
     
     return df_meta
         
 
-def _build_metadata_dataframe(list_files_path, data_folder):
+def _build_metadata_dataframe(list_files_path, working_dir):
 
     '''Building of the dataframe df_meta out of the interactivelly selected module type.
     The df_meta index are the file names without extention (ex: QCELLS901219162417702718_0200W_T0).
@@ -407,7 +412,7 @@ def _build_metadata_dataframe(list_files_path, data_folder):
 
     Args:
         df_files_descp (dataframe): dataframe built by the function build_files_database 
-        data_folder (path):  path  of the folder containing the database.
+        working_dir (path):  path  of the folder containing the database.
 
     Returns:
         (dataframe)  : dataframe of the experimental data  
@@ -426,12 +431,19 @@ def _build_metadata_dataframe(list_files_path, data_folder):
     df_meta = _build_df_meta(list_files_path)
 
     # Builds a database
-    database_path = Path(data_folder) / Path(DATA_BASE_NAME)
+    database_path = Path(working_dir) / Path(DATA_BASE_NAME)
     df2sqlite(df_meta, file=database_path, tbl_name=DATA_BASE_TABLE_EXP)
     
     return df_meta
 
-def build_metadata_df_from_db(data_folder,mode=None):
+def build_metadata_df_from_db(working_dir,mode=None):
+
+    '''
+    Args:
+        working_dir (str): full path of the folder containing the database.
+        mode (list): if None select interactivelly the list of module types, otherwise takes all the module type.
+   
+    '''
     
     #3rd party imports
     import pandas as pd
@@ -440,7 +452,7 @@ def build_metadata_df_from_db(data_folder,mode=None):
     DATA_BASE_TABLE_EXP = GLOBAL['DATA_BASE_TABLE_EXP']
 
     # Interactive selection of the modules
-    df_files_descp = sqlite_to_dataframe(data_folder,DATA_BASE_TABLE_FILE)
+    df_files_descp = sqlite_to_dataframe(working_dir,DATA_BASE_TABLE_FILE)
 
     if mode is None:    
         list_mod_selected = build_modules_list(df_files_descp) 
@@ -449,7 +461,7 @@ def build_metadata_df_from_db(data_folder,mode=None):
     
 
     # Extraction from the file database all the filenames related to the selected modules
-    df_meta = sqlite_to_dataframe(data_folder,DATA_BASE_TABLE_EXP)
+    df_meta = sqlite_to_dataframe(working_dir,DATA_BASE_TABLE_EXP)
     df_meta = df_meta.query('module_type in @list_mod_selected')
     
     return df_meta
@@ -475,14 +487,14 @@ def build_modules_list(df_files_descp):
     
     return list_mod_selected
     
-def build_modules_filenames(list_mod_selected,data_folder):
+def build_modules_filenames(list_mod_selected,working_dir):
 
     '''Builds out of the modules type list_mod_selected the list of all filename
     related to these modules.
 
     Args:
-        df_files_descp (dataframe): dataframe built by the function build_files_database 
-        list_mod_selected (list of str):  list of module names. 
+        list_mod_selected (list of str):  list of module names.
+        working_dir (str): full path of the folder containing the database.
         
     Returns
         list_files_path (list of str): list of the path of the files related to the modules type
@@ -498,7 +510,7 @@ def build_modules_filenames(list_mod_selected,data_folder):
     TREATMENT_DEFAULT_LIST = GLOBAL['TREATMENT_DEFAULT_LIST']    
     
     # Extract from the file database all the filenames related to the selected modules
-    database_path = Path(data_folder) / Path(DATA_BASE_NAME)
+    database_path = Path(working_dir) / Path(DATA_BASE_NAME)
     list_files_path = sieve_files(IRRADIANCE_DEFAULT_LIST,
                              TREATMENT_DEFAULT_LIST,
                              list_mod_selected,
@@ -608,7 +620,16 @@ def pv_flashtest_pca(df_meta,scree_plot = False,interactive_plot=False):
         
     return df_meta_pca
     
-def data_dashboard(data_folder,list_params):
+def data_dashboard(working_dir,list_params):
+
+    '''
+    Args:
+        working_dir (str): full path of the folder containing the database.
+        list_params (list): list of parameters to be processed.
+        
+    Returns:
+        A dataframe containing the dashboard
+    '''
     
     # Standard library imports
     from pathlib import Path
@@ -616,12 +637,12 @@ def data_dashboard(data_folder,list_params):
     #3rd party imports
     import pandas as pd
 
-    df_meta = build_metadata_df_from_db(data_folder)
+    df_meta = build_metadata_df_from_db(working_dir)
     df_meta_dashboard = df_meta.pivot(values= list_params,index=['module_type','treatment',],
                                       columns=['irradiance',]) 
-    df_meta_dashboard.to_excel(data_folder/Path('exp_summary.xlsx'))
+    df_meta_dashboard.to_excel(working_dir/Path('exp_summary.xlsx'))
     
-    print(f'The file {str(data_folder/Path("exp_summary.xlsx"))} has been created')
+    print(f'The file {str(working_dir/Path("exp_summary.xlsx"))} has been created')
     
     return df_meta_dashboard
     
@@ -653,14 +674,14 @@ def correct_filename(filename,new_moduletype_name):
     return corrected_filename
 
 
-def batch_filename_correction(data_folder, verbose=False):
+def batch_filename_correction(working_dir, verbose=False):
 
     ''' The `batch_filename_correction` function corrects the wrong file names 
     by replacing the wrong module type names with the longest one supposed to be the correct one
     and adding the missing leading zeros  in the irradiance field.
     
     Args:
-        data_folder (path): folder full path of the experimental files.
+        working_dir (path): folder full path of the experimental files.
         verbose (bool): allows printings if True (default: False).
         
     Returns:
@@ -674,8 +695,8 @@ def batch_filename_correction(data_folder, verbose=False):
     DATA_BASE_TABLE_FILE = GLOBAL['DATA_BASE_TABLE_FILE']
 
     # Get dataframe describing the experimental files
-    #df_files_descp = build_files_database(data_folder, verbose=False)
-    df_files_descp = sqlite_to_dataframe(data_folder,DATA_BASE_TABLE_FILE)
+    #df_files_descp = build_files_database(working_dir, verbose=False)
+    df_files_descp = sqlite_to_dataframe(working_dir,DATA_BASE_TABLE_FILE)
    
     # Select the module types which names has to be corrected
     list_mod_selected = build_modules_list(df_files_descp)
@@ -686,7 +707,7 @@ def batch_filename_correction(data_folder, verbose=False):
                                                # to the longest module name
 
     # Picks in the database all the filenames related to the selected module except the correct first one
-    list_wrong_files_path = build_modules_filenames(list_mod_selected[1:],data_folder)
+    list_wrong_files_path = build_modules_filenames(list_mod_selected[1:],working_dir)
 
     for filename in list_wrong_files_path: # Modifies the incorrect filenames
         corrected_filename = correct_filename(filename,new_moduletype_name)
@@ -852,7 +873,13 @@ def fit_curve(x,y,order=2,n_fit=200):
     y_fit = p(x_fit)
     return (x_fit,y_fit,poly_coef)
 
-def add_exp_to_database(data_folder):
+def add_exp_to_database(working_dir, new_data_folder):
+
+    '''
+     Args:
+        working_dir (str): full path of the folder containing the database.
+        new_data_folder (str): full path of the folder containing the experiences to be added to the database.
+    '''
     
     # Standard library imports 
     import os 
@@ -865,16 +892,15 @@ def add_exp_to_database(data_folder):
     DATA_BASE_TABLE_FILE = GLOBAL['DATA_BASE_TABLE_FILE']
     DATA_BASE_TABLE_EXP = GLOBAL['DATA_BASE_TABLE_EXP']
 
-    df_files_descp = sqlite_to_dataframe(data_folder, DATA_BASE_TABLE_FILE)
+    df_files_descp = sqlite_to_dataframe(working_dir, DATA_BASE_TABLE_FILE)
     files_before_add = df_files_descp['file_full_path']
-    new_data_folder = assess_path_folders() 
 
     files = [os.path.join(new_data_folder,file) for file in os.listdir(new_data_folder) if 
              Path(file).suffix=='.csv']
 
-    add_files_to_database(files,data_folder)
-    suppress_duplicate_database(data_folder)
-    df_files_descp = sqlite_to_dataframe(data_folder, DATA_BASE_TABLE_FILE)
+    add_files_to_database(files,working_dir)
+    suppress_duplicate_database(working_dir)
+    df_files_descp = sqlite_to_dataframe(working_dir, DATA_BASE_TABLE_FILE)
     files_after_add = df_files_descp['file_full_path']
     
     added_files = list(set(files_after_add) - set(files_before_add))
@@ -882,17 +908,26 @@ def add_exp_to_database(data_folder):
         x = "\n"
         print(f'the following {len(added_files)} files has been added :\n {x.join(added_files)}')
         df_meta = _build_df_meta(added_files)
-        df_meta_concat = pd.concat([sqlite_to_dataframe(data_folder,DATA_BASE_TABLE_EXP),df_meta],ignore_index=True)
+        df_meta_concat = pd.concat([sqlite_to_dataframe(working_dir,DATA_BASE_TABLE_EXP),df_meta],ignore_index=True)
         # Builds a database
-        database_path = Path(data_folder) / Path(DATA_BASE_NAME)
+        database_path = Path(working_dir) / Path(DATA_BASE_NAME)
         df2sqlite(df_meta_concat, file=database_path, tbl_name=DATA_BASE_TABLE_EXP)
     else:
         print('The database is already up to date. No file has been added.')
 
 def _build_df_meta(list_files): 
+    ''' master function used to build the dataframe df_meta.
+    Args:
+        list_files (list): list of files used to build the df_meta dataframe
+    
+    Returns:
+        A dataframe containing the metadata (columns) of the list of experiences (rows)
+    '''
  
+    # Standard library imports 
     import os
     
+    #3rd party imports
     import pandas as pd
     
     COL_NAMES = GLOBAL['COL_NAMES']

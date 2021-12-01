@@ -8,9 +8,12 @@ __all__ = [
 from .PVcharacterization_global import GLOBAL                                    
 
 
-def add_files_to_database(files, data_folder):
+def add_files_to_database(files, working_dir):
     
     '''
+    Args:
+       files (list): list of the full path of the experiece file to be added to the databe
+       working_dir (path): path of the folder holding the database
     '''
 
     import sqlite3
@@ -22,7 +25,7 @@ def add_files_to_database(files, data_folder):
     DATA_BASE_NAME = GLOBAL['DATA_BASE_NAME']
     DATA_BASE_TABLE_FILE = GLOBAL['DATA_BASE_TABLE_FILE']
 
-    database_path = Path(data_folder) / Path(DATA_BASE_NAME)
+    database_path = Path(working_dir) / Path(DATA_BASE_NAME)
     conn = sqlite3.connect(database_path)
     cursor = conn.cursor()
     cursor = conn.execute(f'select * from {DATA_BASE_TABLE_FILE} limit 1')
@@ -39,9 +42,11 @@ def add_files_to_database(files, data_folder):
     conn.commit()
     conn.close()
     
-def suppress_duplicate_database(data_folder):
+def suppress_duplicate_database(working_dir):
     
-    '''
+    '''Suppresses duplicates from the database.
+    Args:
+        working_dir (path): path of the folder holding the database
     '''
     
     import sqlite3
@@ -51,7 +56,7 @@ def suppress_duplicate_database(data_folder):
     DATA_BASE_NAME = GLOBAL['DATA_BASE_NAME']
     DATA_BASE_TABLE_FILE = GLOBAL['DATA_BASE_TABLE_FILE']    
     
-    database_path = Path(data_folder) / Path(DATA_BASE_NAME)
+    database_path = Path(working_dir) / Path(DATA_BASE_NAME)
     conn = sqlite3.connect(database_path)
 
     cursor = conn.cursor()
@@ -72,12 +77,12 @@ def suppress_duplicate_database(data_folder):
 
     conn.close()
     
-def sqlite_to_dataframe(data_folder,tbl_name):
+def sqlite_to_dataframe(working_dir,tbl_name):
     
     '''Read a database as a dataframe.
     
     Args:
-        data_folder (path): path of the folder holding the database
+        working_dir (path): path of the folder holding the database
         tbl_name (str): name of the table
         
     Returns:
@@ -90,7 +95,7 @@ def sqlite_to_dataframe(data_folder,tbl_name):
     
     DATA_BASE_NAME = GLOBAL['DATA_BASE_NAME']
     
-    database_path = Path(data_folder) / Path(DATA_BASE_NAME)
+    database_path = Path(working_dir) / Path(DATA_BASE_NAME)
 
     cnx = sqlite3.connect(database_path)
 
@@ -100,13 +105,13 @@ def sqlite_to_dataframe(data_folder,tbl_name):
 
 def df2sqlite(dataframe, file=None, tbl_name="import"):
 
-    """The function df2sqlite converts a dataframe into a squlite database.
+    '''The function df2sqlite converts a dataframe into a squlite database.
     
     Args:
        dataframe (panda.DataFrame): the dataframe to convert in a data base
        file (Path): full pathname of the database
        tbl_name (str): name of the table
-    """
+    '''
 
     import sqlite3
 
@@ -128,7 +133,7 @@ def df2sqlite(dataframe, file=None, tbl_name="import"):
     
 def sieve_files(irradiance_select, treatment_select, module_type_select, database_path):
 
-    """The sieve_files select the file witch names satisfy the foolowing querry:
+    '''The sieve_files select the file witch names satisfy the foolowing querry:
          - the irradiance (200,400,...) must be part of the irradiance_select list
          - the treatment (T0, T1, T2,...) must be part of the treatment_select list
          - the module type (JINERGY, QCELLS, BOREALIS,...) must be part of the module_type_select list
@@ -141,8 +146,7 @@ def sieve_files(irradiance_select, treatment_select, module_type_select, databas
            
         Return:
           List of the full path of the selected files.
-        
-    """
+    '''
     # Standard library imports
     import sqlite3
     from string import Template
