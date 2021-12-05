@@ -368,7 +368,7 @@ def build_files_database(db_folder,ft_folder,verbose=True):
 
     database_path = Path(db_folder) / Path(DATA_BASE_NAME)
 
-    df2sqlite(df_files_descp.drop('status',axis=1), file=database_path, tbl_name=DATA_BASE_TABLE_FILE)
+    df2sqlite(df_files_descp.drop('status',axis=1), path_db=database_path, tbl_name=DATA_BASE_TABLE_FILE)
     suppress_duplicate_database(db_folder)
     
     if verbose:
@@ -432,7 +432,7 @@ def _build_metadata_dataframe(list_files_path, working_dir):
 
     # Builds a database
     database_path = Path(working_dir) / Path(DATA_BASE_NAME)
-    df2sqlite(df_meta, file=database_path, tbl_name=DATA_BASE_TABLE_EXP)
+    df2sqlite(df_meta, path_db=database_path, tbl_name=DATA_BASE_TABLE_EXP)
     
     return df_meta
 
@@ -911,7 +911,7 @@ def add_exp_to_database(working_dir, new_data_folder):
         df_meta_concat = pd.concat([sqlite_to_dataframe(working_dir,DATA_BASE_TABLE_EXP),df_meta],ignore_index=True)
         # Builds a database
         database_path = Path(working_dir) / Path(DATA_BASE_NAME)
-        df2sqlite(df_meta_concat, file=database_path, tbl_name=DATA_BASE_TABLE_EXP)
+        df2sqlite(df_meta_concat, path_db=database_path, tbl_name=DATA_BASE_TABLE_EXP)
     else:
         print('The database is already up to date. No file has been added.')
 

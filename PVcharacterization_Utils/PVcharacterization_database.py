@@ -15,11 +15,13 @@ def add_files_to_database(files, working_dir):
        files (list): list of the full path of the experiece file to be added to the databe
        working_dir (path): path of the folder holding the database
     '''
-
+    
+    # Standard library imports
     import sqlite3
     from pathlib import Path
     from string import Template
     
+    # Local imports
     from .PVcharacterization_flashtest import parse_filename 
     
     DATA_BASE_NAME = GLOBAL['DATA_BASE_NAME']
@@ -49,6 +51,7 @@ def suppress_duplicate_database(working_dir):
         working_dir (path): path of the folder holding the database
     '''
     
+    # Standard library imports
     import sqlite3
     from pathlib import Path
     from string import Template
@@ -89,6 +92,7 @@ def sqlite_to_dataframe(working_dir,tbl_name):
          (dataframe): a dataframe containing the database.
     '''
     
+    # Standard library imports
     from pathlib import Path
     import sqlite3
     import pandas as pd
@@ -103,31 +107,40 @@ def sqlite_to_dataframe(working_dir,tbl_name):
     
     return df
 
-def df2sqlite(dataframe, file=None, tbl_name="import"):
+def df2sqlite(dataframe, path_db=None, tbl_name="import"):
 
     '''The function df2sqlite converts a dataframe into a squlite database.
     
     Args:
        dataframe (panda.DataFrame): the dataframe to convert in a data base
-       file (Path): full pathname of the database
+       path_db (Path): full pathname of the database
        tbl_name (str): name of the table
     '''
-
+    
+    # Standard library imports
     import sqlite3
+    
+    # 3rd party imports
+    import pandas as pd
 
-    if file is None:
+    if path_db is None:  # Connetion to the database
         conn = sqlite3.connect(":memory:")
     else:
-        conn = sqlite3.connect(file)
-
+        conn = sqlite3.connect(path_db)
+        
+    # Creates a database and a table
     cur = conn.cursor()
-    wildcards = ",".join(["?"] * len(dataframe.columns))
-    data = [tuple(x) for x in dataframe.values]
-    cur.execute(f"DROP TABLE IF EXISTS {tbl_name}")
     col_str = '"' + '","'.join(dataframe.columns) + '"'
-    cur.execute(f"CREATE TABLE {tbl_name} ({col_str})")
-    cur.executemany(f"insert into {tbl_name} values ({wildcards})", data)
-    conn.commit()
+    cur.execute(f"CREATE TABLE IF NOT EXISTS {tbl_name} ({col_str})")
+    dataframe.to_sql(tbl_name, conn, if_exists='replace', index = False)
+
+    #cols_type = ",".join(["?"] * len(dataframe.columns))
+    #data = [tuple(x) for x in dataframe.values]
+    #cur.execute(f"DROP TABLE IF EXISTS {tbl_name}")
+    #col_str = '"' + '","'.join(dataframe.columns) + '"'
+    #cur.execute(f"CREATE TABLE {tbl_name} ({col_str})")
+    #cur.executemany(f"insert into {tbl_name} values ({cols_type})", data)
+    #conn.commit()
     cur.close()
     conn.close()
     
