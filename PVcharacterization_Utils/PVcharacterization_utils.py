@@ -2,6 +2,9 @@ __all__ = ['plot_time_schedule',]
 
 def plot_time_schedule(path_suivi_module, path_time_schedule):
 
+    '''Plots time scheule of modules under experiment.
+    '''
+
     # Standard library import
     import datetime
     import re
@@ -23,7 +26,7 @@ def plot_time_schedule(path_suivi_module, path_time_schedule):
         print ('incorrect date format')
         dep_date = input(f'Enter the dep data using the format yyyy-mm-dd: ') 
 
-   
+    # Reads and cleans the .xlsx file
     df = pd.read_excel(path_suivi_module).astype(str)
     df.dropna()
     df['DATE SORTIE PREVUE'] = df['DATE SORTIE PREVUE'].apply(lambda x: x.strip().split(' ')[0] if x != '00:00:00' else '')
@@ -31,9 +34,12 @@ def plot_time_schedule(path_suivi_module, path_time_schedule):
     df['DATE SORTIE PREVUE'] = pd.to_datetime(df['DATE SORTIE PREVUE'], format="%Y-%m-%d")
     df.drop(df.query('`DATE ENTREE` == "NaT"').index,inplace=True)
     df.drop(df.query('`DATE SORTIE PREVUE` == "NaT"').index,inplace=True)
-
-    df = df.loc[(df['ETAT'] == 'EN COURS') & (df['DATE SORTIE PREVUE']>pd.to_datetime('2021-12-02', format="%Y-%m-%d"))]
-
+    
+    # Selects modules with proper DATE SORTIE PREVUE
+    df = df.loc[(df['ETAT'] == 'EN COURS') & (df['DATE SORTIE PREVUE']>pd.to_datetime(dep_date, format="%Y-%m-%d"))]
+    dg = df.groupby('PROJET').count()
+    
+    # Builds a dataframe for plotly
     list_dataframe = []
     list_start = []
     list_end = []
@@ -41,11 +47,14 @@ def plot_time_schedule(path_suivi_module, path_time_schedule):
     for index, start, end in zip(df.index,df['DATE ENTREE'],df['DATE SORTIE PREVUE'] ):
         list_start.append(start)
         list_end.append(end)
-        days = [start + datetime.timedelta(days=x) for x in range(0, (end-start).days)]
+        days = [start + datetime.timedelta(days=x+1) for x in range(0, (end-start).days)]
         if i%2 : days = days[::-1]
+        label_projet = df.iloc[i]['PROJET']
+        label_projet += f' ({dg.loc[df.iloc[i]["PROJET"],"N°MODULE"]}, '
+        label_projet += f' {end.strftime("%Y-%m-%d")})'
         dict_ = {'Index_exp':[str(index+2)]*len(days),
                  'Date':days,
-                 'PROJET':df.iloc[i]['PROJET'],
+                 'PROJET':label_projet,
                  'N°MODULE':df.iloc[i]['N°MODULE'],
                  'PROGRAMME DE TEST PREVU':df.iloc[i]['PROGRAMME DE TEST PREVU'],
                  "TYPE D'ESSAI":df.iloc[i]["TYPE D'ESSAI"],
@@ -57,7 +66,8 @@ def plot_time_schedule(path_suivi_module, path_time_schedule):
     df_all = pd.concat(list_dataframe)
     range_x = (min(list_start) - datetime.timedelta(days = delta_days),
                max(list_end) + datetime.timedelta(days = delta_days))
-
+               
+    # Plots the timeline
     fig = px.line(df_all,
                       x="Date",
                       y="Index_exp",
@@ -85,3 +95,4 @@ def plot_time_schedule(path_suivi_module, path_time_schedule):
     fig.show()
     fig.write_html(path_time_schedule)
     print(f'The .html file {path_time_schedule} has been stored')
+    
