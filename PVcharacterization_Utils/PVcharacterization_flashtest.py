@@ -23,7 +23,7 @@ __all__ = [
 ]
 
 #Internal imports 
-from .PVcharacterization_global import GLOBAL
+from .config import GLOBAL
 from .PVcharacterization_GUI import (select_data_dir,
                                      select_items,)
 from .PVcharacterization_database import (add_files_to_database,

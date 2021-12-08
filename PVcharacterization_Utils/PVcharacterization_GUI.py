@@ -1,10 +1,11 @@
 __all__ = ['input_treatment_labels',
+           'get_date',
            'select_data_dir',
            'select_files',
            'select_items',]
 
 # Global variables used by Select_multi_items function
-from .PVcharacterization_global import GLOBAL
+from .config import GLOBAL
 
 def select_items(list_item,title,mode = 'multiple'): 
 
@@ -76,7 +77,7 @@ def select_files():
     from tkinter import ttk
     from tkinter import filedialog as fd
 
-    DEFAULT_DIR = GLOBAL['DEFAULT_DIR']
+    DEFAULT_DIR = GLOBAL['WORKING_DIR']
 
     root = tk.Tk()
     root.title('File Dialog')
@@ -86,7 +87,7 @@ def select_files():
     filetypes = (
             ('csv files', '*.csv'),
             ('text files', '*.txt'), 
-            )
+            ('excel files', '*.xlsx'),)
 
     def select_files_():
         global filenames,filetypes
@@ -243,7 +244,7 @@ def _str_size_mm(text, font, ppi):
     '''
 
     # Local imports
-    from .PVcharacterization_global import GLOBAL
+    from .config import GLOBAL
     
     in_to_mm = GLOBAL['IN_TO_MM']
        
@@ -290,7 +291,7 @@ def _mm_to_px(size_mm,ppi, fact=1):
     import math
     
     # Local imports
-    from .PVcharacterization_global import GLOBAL
+    from .config import GLOBAL
     
     in_to_mm = GLOBAL['IN_TO_MM']
 
@@ -376,7 +377,7 @@ def select_data_dir(in_dir, titles, buttons_labels,
     
     # Local imports
     from .PVcharacterization_sys import DISPLAYS
-    from .PVcharacterization_global import GLOBAL
+    from .config import GLOBAL
     
     global out_dir
  
@@ -560,3 +561,39 @@ def select_data_dir(in_dir, titles, buttons_labels,
     win.mainloop()
     
     return out_dir
+    
+def get_date():
+    
+    # Standard library imports
+    import datetime 
+    import tkinter as tk
+    
+    # 3rd party import
+    from tkcalendar import Calendar
+    
+    global selected_date
+    
+    def grad_date():
+        global selected_date
+        selected_date = cal.get_date()
+        
+        date.config(text = "Selected Date is: " + cal.get_date())
+
+    root = tk.Tk()
+    root.geometry("400x400")
+
+    current_time = datetime.datetime.now() 
+    cal = Calendar(root, selectmode = 'day',
+                   year = current_time.year,
+                   month = current_time.month,
+                   day = current_time.day)
+    cal.pack(pady = 20)
+
+    tk.Button(root, text = "Get Date",
+       command = grad_date).pack(pady = 20)
+ 
+    date = tk.Label(root, text = "")
+    date.pack(pady = 20)
+
+    root.mainloop()
+    return datetime.datetime.strptime(selected_date, '%m/%d/%y')

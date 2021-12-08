@@ -12,21 +12,27 @@ def plot_time_schedule(path_suivi_module, path_time_schedule):
     # 3rd party imports
     import pandas as pd
     import plotly.express as px
+    
+    # Local imports
+    from .PVcharacterization_GUI import get_date
 
 
     # Input the init date
-    re_date = re.compile(r'\d{4}-\d{1,2}-\d{1,2}')
+    #re_date = re.compile(r'\d{4}-\d{1,2}-\d{1,2}')
     
     delta_days = 2 # Use to increase range_x
     color_choice = 'N°MODULE', # 'PROJET'
 
-    dep_date = input(f'Enter the dep data using the format yyyy-mm-dd') 
+    #dep_date = input(f'Enter the dep data using the format yyyy-mm-dd') 
 
-    while not re.findall(re_date,dep_date):
-        print ('incorrect date format')
-        dep_date = input(f'Enter the dep data using the format yyyy-mm-dd: ') 
+    #while not re.findall(re_date,dep_date):
+    #    print ('incorrect date format')
+    #    dep_date = input(f'Enter the dep data using the format yyyy-mm-dd: ') 
+    
+    dep_time = get_date()
 
     # Reads and cleans the .xlsx file
+    
     df = pd.read_excel(path_suivi_module).astype(str)
     df.dropna()
     df['DATE SORTIE PREVUE'] = df['DATE SORTIE PREVUE'].apply(lambda x: x.strip().split(' ')[0] if x != '00:00:00' else '')
@@ -36,7 +42,8 @@ def plot_time_schedule(path_suivi_module, path_time_schedule):
     df.drop(df.query('`DATE SORTIE PREVUE` == "NaT"').index,inplace=True)
     
     # Selects modules with proper DATE SORTIE PREVUE
-    df = df.loc[(df['ETAT'] == 'EN COURS') & (df['DATE SORTIE PREVUE']>pd.to_datetime(dep_date, format="%Y-%m-%d"))]
+    #df = df.loc[(df['ETAT'] == 'EN COURS') & (df['DATE SORTIE PREVUE']>pd.to_datetime(dep_date, format="%Y-%m-%d"))]
+    df = df.loc[(df['ETAT'] == 'EN COURS') & (df['DATE SORTIE PREVUE']>dep_time)]
     dg = df.groupby('PROJET').count()
     
     # Builds a dataframe for plotly

@@ -57,7 +57,7 @@ def get_displays(in_to_mm=None):
     from screeninfo import get_monitors
     
     # Local imports
-    from .PVcharacterization_global import GLOBAL
+    from .config import GLOBAL
 
     if in_to_mm==None: in_to_mm = GLOBAL['IN_TO_MM']
     

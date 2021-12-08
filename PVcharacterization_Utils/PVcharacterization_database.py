@@ -5,7 +5,7 @@ __all__ = [
     "suppress_duplicate_database",
     "sqlite_to_dataframe",]
    
-from .PVcharacterization_global import GLOBAL                                    
+from .config import GLOBAL                                    
 
 
 def add_files_to_database(files, working_dir):

@@ -3,7 +3,7 @@ __all_ =['construct_x_y',
          'plot_params_diff',
          ]
 
-from .PVcharacterization_global import GLOBAL
+from .config import GLOBAL
 from .PVcharacterization_GUI import (select_items,
                                      select_files)
 from .PVcharacterization_flashtest import (correct_iv_curve,

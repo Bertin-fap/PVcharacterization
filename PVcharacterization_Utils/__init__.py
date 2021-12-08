@@ -5,7 +5,7 @@ __license__ = "MIT"
 from .PVcharacterization_database import *
 from .PVcharacterization_GUI import *
 from .PVcharacterization_flashtest import *
-from .PVcharacterization_global import *
+from .config import *
 from .PVcharacterization_image import *
 from .PVcharacterization_plot import *
 from .PVcharacterization_sys import *
