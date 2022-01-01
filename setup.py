@@ -4,13 +4,15 @@ from setuptools import setup, find_packages
 
 # read the contents of your README file
 from os import path
+from os import path as OSPath
+
+VERSION = '1.0.0'
+
 this_directory = path.abspath(path.dirname(__file__))
 with open(path.join(this_directory, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
-#requires = open(file_requirements).read().strip().split('\n')
-    
-# This setup is suitable for "python setup.py develop".
+install_requires = open(path.join(this_directory, 'requirements.txt'), encoding='utf-8').read().strip().split('\n')
 
 setup(name='PVcharacterization_Utils',
       version='1.0.0',
@@ -28,17 +30,9 @@ setup(name='PVcharacterization_Utils',
         'Intended Audience :: Science/Research'
         ],
       keywords = 'Image, data processing, solar cell, flash test, electroluminescence',
-      install_requires = ['pandas',
-                          'pandasgui',
-                          'numpy',
-                          'scipy',
-                          'seaborn',
-                          'scikit-image',
-                          'plotly',
-                          'pyyaml',
-                          'tkcalendar'],
+      install_requires = install_requires,
       author= 'PV_team',
       author_email= 'francois.bertin7@wanadoo.fr',
-      url= https://github.com/Bertin-fap/PVcharacterization,
+      url= 'https://github.com/Bertin-fap/PVcharacterization',
       packages=find_packages(),
       )
