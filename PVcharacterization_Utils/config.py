@@ -28,16 +28,16 @@ def get_config_dir():
     """
     # Standard library imports
     import sys
-    import pathlib
+    from pathlib import Path
     
-    home = pathlib.Path.home()
+    home = Path.home()
 
-    if sys.platform == "win32":
-        return home / "AppData/Roaming"
-    elif sys.platform == "linux":
-        return home / ".local/share"
-    elif sys.platform == "darwin":
-        return home / "Library/Application Support"
+    if sys.platform == 'win32':
+        return home / Path('AppData/Roaming')
+    elif sys.platform == 'linux':
+        return home / Path('.local/share')
+    elif sys.platform == 'darwin':
+        return home / Path('Library/Application Support')
 
            
 def change_config_pvcharacterization(flashtest_dir,working_dir):
