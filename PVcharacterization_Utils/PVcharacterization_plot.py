@@ -186,8 +186,8 @@ def construct_x_y(df_meta,module_type,treatment,param,diff):
         y = df_meta_cp[param].tolist()
         x = df_meta_cp['irradiance'].astype(float).tolist()
     else:
-        df_meta_cp_end = df_meta.query("module_type==@module_type & treatment==@treatment[0] ")
-        df_meta_cp_deb = df_meta.query("module_type==@module_type & treatment==@treatment[1] ")
+        df_meta_cp_end = df_meta.query("module_type==@module_type & treatment==@treatment[0] ").sort_values('irradiance')
+        df_meta_cp_deb = df_meta.query("module_type==@module_type & treatment==@treatment[1] ").sort_values('irradiance')
         val = np.array(df_meta_cp_end[param].tolist())
         ref = np.array(df_meta_cp_deb[param].tolist())
         try:
