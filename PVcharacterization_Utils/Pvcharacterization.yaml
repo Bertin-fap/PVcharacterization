@@ -68,6 +68,7 @@ PLOT_PARAMS_DICT:
   - '4'
   ticks_fontsize: 12
   title_fontsize: 16
+  y_limit_type: None
 TREATMENT_DEFAULT_LIST:
 - T0
 - T1

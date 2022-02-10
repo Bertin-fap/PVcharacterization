@@ -240,7 +240,7 @@ def parse_filename(file,warning=False):
     FileNameInfo = namedtuple("FileNameInfo", "exp_id irradiance treatment module_type file_full_path status")
     re_irradiance = re.compile(r"(?<=\_)\d{3,4}(?=W\_)")
     re_treatment = re.compile(r"(?<=\_)T\d{1}(?=\.csv)")
-    re_module_type = re.compile(r"[A-Z\-#0-9]*\d{1,50}(?=\_)")
+    re_module_type = re.compile(r"[a-zA-Z\-#0-9]*\d{1,50}(?=\_)")
     
     status=True
     try: # Find irradiance field

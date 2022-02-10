@@ -79,10 +79,11 @@ def _plot_params(params,
         dic_ax = {t:i for i,t in enumerate(list_trt)}
     
     #  Set ordinates dynamic of the plots (enlarge the irradiance dynamic)
-    dic_ylim = set_ymin_ymax_param(df_meta,params, list_modules_type,list_trt_diff,diff)
+    dic_ylim = _set_ymin_ymax_param(df_meta,params, list_modules_type,list_trt_diff,diff,
+                                    limit_type= plot_params_dict['y_limit_type'])
             
     #  Set abcissa dynamic of the plots (enlarge the irradiance dynamic)
-    (irr_min, irr_max) = set_xmin_xmax(list_irr,irr_add_nbr=plot_params_dict['irr_add_nbr'])
+    (irr_min, irr_max) = _set_xmin_xmax(list_irr,irr_add_nbr=plot_params_dict['irr_add_nbr'])
 
     # Set the figure size and the subplots
     fig = plt.figure(figsize=(plot_params_dict['fig_width'],
@@ -115,10 +116,12 @@ def _plot_params(params,
                     ax[idx_param, idx_trt].scatter(
                             x_y[0],
                             x_y[1],
-                            c=plot_params_dict['marker_colors'][idx_irr] ,
+                            edgecolors=plot_params_dict['marker_colors'][idx_irr] ,  #modif
+                            facecolors='none', #modif
                             marker=plot_params_dict['markers'][idx_module],
                             label=label,
                             s=plot_params_dict['marker_size'])
+                    ax[idx_param, idx_trt].grid(visible=None, which='major', axis='both')
                 if diff: ax[idx_param, idx_trt].axhline(y=0, color="red", linestyle="--")
                 if idx_param == 0:
                     title = f'{dic_trt_meaning[trt[0]]} - {dic_trt_meaning[trt[1]]}' \
@@ -128,7 +131,12 @@ def _plot_params(params,
                                                    fontsize=plot_params_dict['labels_fontsize'])
                 if idx_trt == 0:
                     if diff: # Plot the relative evolution of the parameters
-                        ax[idx_param, idx_trt].set_ylabel("$\Delta$ " + param + " (%)",
+                        if param == "Fill Factor":
+                            param_ = "FF"
+                        else :
+                            param_ = param
+                        
+                        ax[idx_param, idx_trt].set_ylabel("$\Delta$ " + param_ + " (%)",# modif 
                                                           fontsize=plot_params_dict['labels_fontsize'])
                     else:
                         ax[idx_param, idx_trt].set_ylabel(f'{param} ({PARAM_UNIT_DIC[param]})',
@@ -138,9 +146,9 @@ def _plot_params(params,
                 ax[idx_param, idx_trt].set_xticklabels(list_irr, fontsize=plot_params_dict['ticks_fontsize'])
                 ax[idx_param, idx_trt].set_xlim([irr_min, irr_max])
                 ax[idx_param, idx_trt].set_ylim(dic_ylim[param])
+                ax[idx_param, idx_trt].grid()
                 for axis in ["top", "bottom", "left", "right"]:
-                    ax[idx_param, idx_trt].spines[axis].set_linewidth(2)
-                    
+                    ax[idx_param, idx_trt].spines[axis].set_linewidth(2)                                
     labels_handles = {
                       label: handle for ax in fig.axes 
                       for handle, label in zip(*ax.get_legend_handles_labels())
@@ -148,14 +156,15 @@ def _plot_params(params,
     fig.legend(
                labels_handles.values(),
                labels_handles.keys(),
-               loc='center right',
+               loc='center left',
                bbox_to_anchor=(plot_params_dict['bbox_x0'],
-                               plot_params_dict['bbox_y0'],
-                               plot_params_dict['bbox_width'],
-                               plot_params_dict['bbox_height']),
+                               plot_params_dict['bbox_y0']),
+                               #plot_params_dict['bbox_width'],
+                               #plot_params_dict['bbox_height']),
                bbox_transform=plt.gcf().transFigure,
                fontsize=plot_params_dict['legend_fontsize']
      )
+    plt.show() # modif
     
 def construct_x_y(df_meta,module_type,treatment,param,diff):
     
@@ -199,7 +208,7 @@ def construct_x_y(df_meta,module_type,treatment,param,diff):
         
     return (x,y)
     
-def set_ymin_ymax_param(df_meta, params, list_modules_type, list_trt_diff, diff):
+def _set_ymin_ymax_param(df_meta, params, list_modules_type, list_trt_diff, diff, limit_type=None):
     
     '''Build a dict keyed by the parameters and which values are list [ymin, ymax] 
     '''
@@ -216,10 +225,16 @@ def set_ymin_ymax_param(df_meta, params, list_modules_type, list_trt_diff, diff)
             
     min_max_param = {param:[y[0] - (ecart := (y[1]-y[0]))/2,y[1] + ecart]
                         for param,y in min_max_param.items()}
+    if limit_type == 'extremorum': 
+        min_minimorum = min([y[0] for y in min_max_param.values()])
+        max_maximorum = max([y[1] for y in min_max_param.values()])
+    
+        min_max_param = {param:[min_minimorum,max_maximorum]
+                        for param,y in min_max_param.items()}
    
     return min_max_param
 
-def set_xmin_xmax(list_irr,irr_add_nbr=1):
+def _set_xmin_xmax(list_irr,irr_add_nbr=1):
 
     irr_add = irr_add_nbr * (max(list_irr) - min(list_irr))
     irr_min, irr_max = (
