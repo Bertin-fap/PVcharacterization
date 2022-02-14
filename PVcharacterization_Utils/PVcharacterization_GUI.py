@@ -196,7 +196,10 @@ def input_treatment_labels(list_diff):
 
     def Register():
         global dict_label,list_trt
-        dict_label = {list_trt[idx] : str(list_t[idx].get()) for idx in range(len(list_t))}
+        dict_label= {}
+        for idx in range(len(list_t)):
+            value = str(list_t[idx].get())
+            dict_label[list_trt[idx]] = value if value else list_trt[idx]
 
     TitleFrame = tk.Frame(root, height=100, width=640, bd=1, relief=tk.SOLID)
     TitleFrame.pack(side=tk.TOP)

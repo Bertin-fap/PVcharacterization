@@ -436,7 +436,7 @@ def _build_metadata_dataframe(list_files_path, working_dir):
     
     return df_meta
 
-def build_metadata_df_from_db(working_dir,mode=None):
+def build_metadata_df_from_db(working_dir,mode=None,allowed_irradiance=None):
 
     '''
     Args:
@@ -463,6 +463,8 @@ def build_metadata_df_from_db(working_dir,mode=None):
     # Extraction from the file database all the filenames related to the selected modules
     df_meta = sqlite_to_dataframe(working_dir,DATA_BASE_TABLE_EXP)
     df_meta = df_meta.query('module_type in @list_mod_selected')
+    if allowed_irradiance is not None:
+        df_meta = df_meta.query('irradiance in @allowed_irradiance')
     
     return df_meta
     

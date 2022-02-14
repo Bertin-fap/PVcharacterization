@@ -121,7 +121,7 @@ def _plot_params(params,
                             marker=plot_params_dict['markers'][idx_module],
                             label=label,
                             s=plot_params_dict['marker_size'])
-                    ax[idx_param, idx_trt].grid(visible=None, which='major', axis='both')
+                #ax[idx_param, idx_trt].grid() #visible=None, which='major', axis='both'
                 if diff: ax[idx_param, idx_trt].axhline(y=0, color="red", linestyle="--")
                 if idx_param == 0:
                     title = f'{dic_trt_meaning[trt[0]]} - {dic_trt_meaning[trt[1]]}' \
@@ -237,6 +237,7 @@ def _set_ymin_ymax_param(df_meta, params, list_modules_type, list_trt_diff, diff
 def _set_xmin_xmax(list_irr,irr_add_nbr=1):
 
     irr_add = irr_add_nbr * (max(list_irr) - min(list_irr))
+    if irr_add == 0 : irr_add = 100
     irr_min, irr_max = (
         min(list_irr) -  irr_add,
         max(list_irr) +  irr_add,
@@ -280,6 +281,20 @@ def plot_params_diff(df_meta,
                      dic_trt_meaning=None,
                      long_label=False,
                      plot_params_dict=None):
+                     
+    '''Plot len(list_param) times len(list_diff graphics) of the parameters/parameters difference  values versus irradiance
+    for each module type.
+    
+    Args:
+       df_meta (datframe): dataframe containing all the information about the modules to deal with
+       list_diff (list of tuples): list of tuples (Ti,Tj) we plot param((Ti)-param(Tj))/param(Tj)
+       list_params (list of str):list of params to plot. If None the list of parameter is built interactivelly
+       dic_trt_meaning (dict): {Ti: explicit value of Ti}
+       long_label: False we truncate the labels
+       plot_params_dict (dict): defines the ploting parameters
+       
+    
+    '''
     
     
     #3rd party imports
