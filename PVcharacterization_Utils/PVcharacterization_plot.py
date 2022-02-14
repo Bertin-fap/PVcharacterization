@@ -129,6 +129,9 @@ def _plot_params(params,
                     ax[idx_param, idx_trt].set_title(title,fontsize=plot_params_dict['title_fontsize'])
                 ax[idx_param, idx_trt].set_xlabel("Irradiance ($W/{m^2}$)",
                                                    fontsize=plot_params_dict['labels_fontsize'])
+                if idx_module == 0:
+                    ax[idx_param, idx_trt].grid() 
+                    
                 if idx_trt == 0:
                     if diff: # Plot the relative evolution of the parameters
                         if param == "Fill Factor":
@@ -141,12 +144,14 @@ def _plot_params(params,
                     else:
                         ax[idx_param, idx_trt].set_ylabel(f'{param} ({PARAM_UNIT_DIC[param]})',
                                                           fontsize=plot_params_dict['labels_fontsize'])
+            
+                    
                 ax[idx_param, idx_trt].tick_params(axis="x", rotation=90)
                 ax[idx_param, idx_trt].set_xticks(list_irr, minor=False)
                 ax[idx_param, idx_trt].set_xticklabels(list_irr, fontsize=plot_params_dict['ticks_fontsize'])
                 ax[idx_param, idx_trt].set_xlim([irr_min, irr_max])
                 ax[idx_param, idx_trt].set_ylim(dic_ylim[param])
-                ax[idx_param, idx_trt].grid()
+                
                 for axis in ["top", "bottom", "left", "right"]:
                     ax[idx_param, idx_trt].spines[axis].set_linewidth(2)                                
     labels_handles = {
