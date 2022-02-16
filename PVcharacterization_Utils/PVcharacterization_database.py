@@ -65,9 +65,9 @@ def suppress_duplicate_database(working_dir):
     cursor = conn.cursor()
 
     template = Template('''DELETE FROM $table1
-                           WHERE  rowid NOT IN
+                           WHERE  exp_id NOT IN
                            (
-                           SELECT MIN(rowid)
+                           SELECT MIN(exp_id)
                            FROM $table2
                            GROUP BY
                                    irradiance,

@@ -211,6 +211,7 @@ def input_treatment_labels(list_diff):
     list_t = ['']*n_items
     for idx, trt in enumerate(list_trt):
         list_t[idx] =  tk.StringVar()
+        list_t[idx].set(list_trt[idx])
         tk.Label(RegisterFrame, text= trt, font=FONT, bd=18).grid(row=1+idx)
         tk.Entry(RegisterFrame, font=FONT1, textvariable=list_t[idx], width=15).grid(row=1+idx, column=1)
     lbl_result = tk.Label(RegisterFrame, text="", font=FONT).grid(row=n_items+1, columnspan=2)
