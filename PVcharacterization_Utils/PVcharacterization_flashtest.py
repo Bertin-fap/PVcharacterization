@@ -370,11 +370,12 @@ def build_files_database(db_folder,ft_folder,verbose=True):
 
 
     df_files_descp  = pd.DataFrame(list_files_descp) # Build the database
+    df_files_descp = df_files_descp.drop_duplicates('exp_id')
 
     database_path = Path(db_folder) / Path(DATA_BASE_NAME)
 
     df2sqlite(df_files_descp.drop('status',axis=1), path_db=database_path, tbl_name=DATA_BASE_TABLE_FILE)
-    suppress_duplicate_database(db_folder)
+    #suppress_duplicate_database(db_folder)
     
     if verbose:
         print(f'{len(datafiles_list)} flash test files detected.\n{len(list_multi_file)} duplicates suppressed\nThe database table {DATA_BASE_TABLE_FILE} in {database_path} is built\n\n')

@@ -113,6 +113,7 @@ def _plot_params(params,
                         label = module_type+' '+str(x_y[0])
                     else:
                         if num_trt==0: label = module_type
+                   
                     ax[idx_param, idx_trt].scatter(
                             x_y[0],
                             x_y[1],
@@ -121,7 +122,6 @@ def _plot_params(params,
                             marker=plot_params_dict['markers'][idx_module],
                             label=label,
                             s=plot_params_dict['marker_size'])
-                #ax[idx_param, idx_trt].grid() #visible=None, which='major', axis='both'
                 if diff: ax[idx_param, idx_trt].axhline(y=0, color="red", linestyle="--")
                 if idx_param == 0:
                     title = f'{dic_trt_meaning[trt[0]]} - {dic_trt_meaning[trt[1]]}' \
