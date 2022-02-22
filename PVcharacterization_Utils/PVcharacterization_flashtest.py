@@ -20,6 +20,8 @@ __all__ = [
     "pv_flashtest_pca",
     "read_and_clean",
     "read_flashtest_file",
+    "select_irradiance",
+    "select_module",
 ]
 
 #Internal imports 
@@ -370,17 +372,18 @@ def build_files_database(db_folder,ft_folder,verbose=True):
 
 
     df_files_descp  = pd.DataFrame(list_files_descp) # Build the database
-    df_files_descp = df_files_descp.drop_duplicates('exp_id')
+    #df_files_descp = df_files_descp.drop_duplicates('exp_id') # we can drop duplicates in the database
 
     database_path = Path(db_folder) / Path(DATA_BASE_NAME)
 
     df2sqlite(df_files_descp.drop('status',axis=1), path_db=database_path, tbl_name=DATA_BASE_TABLE_FILE)
-    #suppress_duplicate_database(db_folder)
+    suppress_duplicate_database(db_folder)
     
     if verbose:
         print(f'{len(datafiles_list)} flash test files detected.\n{len(list_multi_file)} duplicates suppressed\nThe database table {DATA_BASE_TABLE_FILE} in {database_path} is built\n\n')
     
     return #df_files_descp
+
 
 def build_metadata_dataframe(working_dir,interactive=False):
 
@@ -442,7 +445,8 @@ def _build_metadata_dataframe(list_files_path, working_dir):
     
     return df_meta
 
-def build_metadata_df_from_db(working_dir,mode=None,allowed_irradiance=None):
+
+def build_metadata_df_from_db(working_dir,list_mod_selected,list_irradiance):
 
     '''
     Args:
@@ -456,23 +460,46 @@ def build_metadata_df_from_db(working_dir,mode=None,allowed_irradiance=None):
     
     DATA_BASE_TABLE_FILE = GLOBAL['DATA_BASE_TABLE_FILE']
     DATA_BASE_TABLE_EXP = GLOBAL['DATA_BASE_TABLE_EXP']
-
-    # Interactive selection of the modules
-    df_files_descp = sqlite_to_dataframe(working_dir,DATA_BASE_TABLE_FILE)
-
-    if mode is None:    
-        list_mod_selected = build_modules_list(df_files_descp) 
-    else:
-        list_mod_selected = df_files_descp['module_type'].unique()
     
 
     # Extraction from the file database all the filenames related to the selected modules
     df_meta = sqlite_to_dataframe(working_dir,DATA_BASE_TABLE_EXP)
     df_meta = df_meta.query('module_type in @list_mod_selected')
-    if allowed_irradiance is not None:
-        df_meta = df_meta.query('irradiance in @allowed_irradiance')
+    
+    df_meta = df_meta.query('irradiance in @list_irradiance')
     
     return df_meta
+
+    
+def select_module(working_dir,mode=None):
+    
+    '''Module selection if mode=None we interactively choose the modules otherwise, we select all the modules
+    '''
+    df_files_descp = sqlite_to_dataframe(working_dir,GLOBAL['DATA_BASE_TABLE_FILE'])
+
+    if mode is None:    
+        list_mod_selected = build_modules_list(df_files_descp)
+    else:
+        list_mod_selected = df_files_descp['module_type'].unique()
+        
+    return list_mod_selected
+
+def select_irradiance(working_dir,list_mod_selected, mode=None):
+    
+    '''Module selection if mode=None we interactively choose the irradiances otherwise, we select all the irradiances
+    '''
+    df_files_descp = sqlite_to_dataframe(working_dir,GLOBAL['DATA_BASE_TABLE_FILE'])
+    list_all_irradiance = df_files_descp.query('module_type in @list_mod_selected').irradiance.unique()
+
+    if mode is None:    
+        list_irradiance = list_all_irradiance
+    else:
+        list_irradiance =  select_items(list_all_irradiance,
+                                           'Select the irradiance',
+                                           mode = 'multiple')
+        list_irradiance = [int(irradiance) for irradiance in list_irradiance]
+        
+    return list_irradiance
     
 def build_modules_list(df_files_descp):
 
@@ -495,7 +522,7 @@ def build_modules_list(df_files_descp):
     
     return list_mod_selected
     
-def build_modules_filenames(list_mod_selected,working_dir):
+def build_modules_filenames(working_dir,list_mod_selected):
 
     '''Builds out of the modules type list_mod_selected the list of all filename
     related to these modules.
@@ -645,7 +672,9 @@ def data_dashboard(working_dir,list_params):
     #3rd party imports
     import pandas as pd
 
-    df_meta = build_metadata_df_from_db(working_dir)
+    list_mod_selected = select_module(working_dir)
+    list_irradiance = select_irradiance(working_dir,list_mod_selected,mode='select')
+    df_meta = build_metadata_df_from_db(working_dir,list_mod_selected,list_irradiance)
     df_meta_dashboard = df_meta.pivot(values= list_params,index=['module_type','treatment',],
                                       columns=['irradiance',]) 
     df_meta_dashboard.to_excel(working_dir/Path('exp_summary.xlsx'))

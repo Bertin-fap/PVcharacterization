@@ -47,6 +47,7 @@ def add_files_to_database(files, working_dir):
 def suppress_duplicate_database(working_dir):
     
     '''Suppresses duplicates from the database.
+    adapted from https://stackoverflow.com/questions/8190541/deleting-duplicate-rows-from-sqlite-database
     Args:
         working_dir (path): path of the folder holding the database
     '''
@@ -65,14 +66,12 @@ def suppress_duplicate_database(working_dir):
     cursor = conn.cursor()
 
     template = Template('''DELETE FROM $table1
-                           WHERE  exp_id NOT IN
+                           WHERE  rowid NOT IN
                            (
-                           SELECT MIN(exp_id)
+                           SELECT MIN(rowid)
                            FROM $table2
                            GROUP BY
-                                   irradiance,
-                                   treatment,
-                                   module_type
+                               exp_id
                            )''')
     cursor.execute(template.substitute({'table1': DATA_BASE_TABLE_FILE,
                                         'table2': DATA_BASE_TABLE_FILE,}))

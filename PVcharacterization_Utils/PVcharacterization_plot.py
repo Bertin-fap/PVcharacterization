@@ -1,6 +1,7 @@
 __all_ =['construct_x_y',
-         'init_plot_diff',
          'plot_params_diff',
+         "select_diff_treatment",
+         'select_params',
          ]
 
 from .config import GLOBAL
@@ -52,17 +53,11 @@ def _plot_params(params,
     import numpy as np
     import pandas as pd
     
-    TREATMENT_DEFAULT_LIST = GLOBAL['TREATMENT_DEFAULT_LIST']
-    
     params_nb = len(params)
-    assert params_nb>1, "The number of parameters must be greater than one"
     
     diff = bool(list_diff) # if true the parameters relative evolution in %, vs irradiance, 
                            #    between every difference treatment are plotted
                            # if false the parameters evolution  vs irradiance are plotted
-    
-    if dic_trt_meaning is None:
-        dic_trt_meaning = {trt:trt for trt in TREATMENT_DEFAULT_LIST}
     
         
         
@@ -95,8 +90,8 @@ def _plot_params(params,
                           hspace=0,
                           wspace=0
                           )
-
     ax = gs.subplots(sharex="col", sharey="row")
+    
     if params_nb==1 : # we transform a 1D array to a 2D array
         ax = ax.reshape((1,np.shape(ax)[0]))
     if len(list_trt_diff) ==1: # we transform a 1D array to a 2D array
@@ -142,7 +137,8 @@ def _plot_params(params,
                         ax[idx_param, idx_trt].set_ylabel("$\Delta$ " + param_ + " (%)",# modif 
                                                           fontsize=plot_params_dict['labels_fontsize'])
                     else:
-                        ax[idx_param, idx_trt].set_ylabel(f'{param} ({PARAM_UNIT_DIC[param]})',
+                        unit = GLOBAL['PARAM_UNIT_DIC'][param]
+                        ax[idx_param, idx_trt].set_ylabel(f'{param} ({unit})',
                                                           fontsize=plot_params_dict['labels_fontsize'])
             
                     
@@ -169,7 +165,7 @@ def _plot_params(params,
                bbox_transform=plt.gcf().transFigure,
                fontsize=plot_params_dict['legend_fontsize']
      )
-    plt.show() # modif
+    plt.show()
     
 def construct_x_y(df_meta,module_type,treatment,param,diff):
     
@@ -241,21 +237,35 @@ def _set_ymin_ymax_param(df_meta, params, list_modules_type, list_trt_diff, diff
 
 def _set_xmin_xmax(list_irr,irr_add_nbr=1):
 
-    irr_add = irr_add_nbr * (max(list_irr) - min(list_irr))
+    '''
+    Set the min and max value use to set the limit of the x axis.
+        args:
+            list_irr (list or real): list of x values
+            irr_add_nbr (real): we add/substract irr_add_nbr*(max(list_irr)-min(list_irr))
+                               to max(list_irr)/min(list_irr).
+        returns:
+            The tuple (irr_min, irr_max)
+    '''
+    
+    xmax = max(list_irr)
+    xmin = min(list_irr)
+    irr_add = irr_add_nbr * (xmax -xmin)
     if irr_add == 0 : irr_add = 100
     irr_min, irr_max = (
-        min(list_irr) -  irr_add,
-        max(list_irr) +  irr_add,
+        xmin -  irr_add,
+        xmax +  irr_add,
     )
     
     return (irr_min, irr_max)
 
-def init_plot_diff(df_meta):
+    
+def select_diff_treatment(working_dir,list_mod_selected):
     
     '''Interactivelly builds a list of tuples [(T<i>,T<j>),...] where i>j and T<i> is the ieme treatment.
     
     Args:
-       df_meta (dataframe): the dataframe containing the experimental values.
+       working_dir (str): full path to the experimental values
+       list_mod_selected (list of str) : list of the selectected modules
        
     Returns:
        A list of tuples
@@ -266,23 +276,49 @@ def init_plot_diff(df_meta):
 
     #3rd party imports
     import pandas as pd
+    
+    # Internal imports
+    from .PVcharacterization_database import sqlite_to_dataframe
 
-    mod_selected = df_meta['module_type'].unique()
-    list_treatments = list(pd.unique(df_meta['treatment']))
+    df_files_descp = sqlite_to_dataframe(working_dir,GLOBAL['DATA_BASE_TABLE_FILE'])
+    list_treatments = df_files_descp.query('module_type in @list_mod_selected').treatment.unique()
     list_treatments.sort()
     if len(list_treatments)==1: raise Exception("Sorry, the number of treatments must be >1 ") 
     list_combinations = list(combinations(list_treatments,2))
 
-    list_diff = select_items(list_combinations,
-                                'Select the difference',
-                                mode = 'multiple')
-    list_diff = [(x[1],x[0]) for x in list_diff]
+    list_diff_treatment = select_items(list_combinations,
+                                          'Select the difference',
+                                          mode = 'multiple')
+    list_diff_treatment = [(x[1],x[0]) for x in list_diff_treatment]
 
-    return list_diff
+    return list_diff_treatment
+    
+def select_params(list_params = None):
+
+    '''Selection of param to be chosen. If list_mod_selected is None the parameter are selected
+    interactivelly otherwise ist_params container the list of parameters.
+    '''
+    COL_NAMES = GLOBAL['COL_NAMES']
+
+    list_allowed_params = list(COL_NAMES)+['Isc_corr','Fill Factor_corr']
+    list_allowed_params.remove('Title')
+    if list_params is None:
+        list_params = select_items(list_allowed_params,
+                                      'Select the params',
+                                       mode = 'multiple')
+    else:
+        params_copy = list(list_params)
+        unkown_params = set(params_copy).difference(set( list_allowed_params))
+        for unknow_param in unkown_params:
+            print(f'WARNING parameter {unknow_param} will be ignored')
+            list_params.remove(unknow_param)
+            
+    return list_params
+
 
 def plot_params_diff(df_meta,
                      list_diff,
-                     list_params=None,
+                     list_params,
                      dic_trt_meaning=None,
                      long_label=False,
                      plot_params_dict=None):
@@ -305,31 +341,24 @@ def plot_params_diff(df_meta,
     #3rd party imports
     import pandas as pd
     
-    COL_NAMES = GLOBAL['COL_NAMES']
     PLOT_PARAMS_DICT = GLOBAL['PLOT_PARAMS_DICT']
     NBR_MAX_PARAMS_PLOT = len(GLOBAL['PLOT_PARAMS_DICT']['markers'])
-
-    list_allowed_params = list(COL_NAMES)+['Isc_corr','Fill Factor_corr']
-    list_allowed_params.remove('Title')
-    if list_params is None:
-        list_params = select_items(list_allowed_params,
-                                      'Select the params',
-                                       mode = 'multiple')
-    else:
-        params_copy = list(list_params)
-        unkown_params = set(params_copy).difference(set( list_allowed_params))
-        for unknow_param in unkown_params:
-            print(f'WARNING parameter {unknow_param} will be ignored')
-            list_params.remove(unknow_param)
+    TREATMENT_DEFAULT_LIST = GLOBAL['TREATMENT_DEFAULT_LIST']
+    
+    assert len(list_params)>1, "The number of parameters must be greater than one"
 
     list_modules = pd.unique(df_meta['module_type'])          # List of modules name (ID)
     if len(list_modules)>NBR_MAX_PARAMS_PLOT:
         list_modules = list_modules[0:NBR_MAX_PARAMS_PLOT-1]
         print(f'WARNING: to much modules. Only the first {NBR_MAX_PARAMS_PLOT} will be plotted.')
+        
     if plot_params_dict is None:
         plot_params_dict = PLOT_PARAMS_DICT
     else:
         plot_params_dict = plot_params_dict
+        
+    if dic_trt_meaning is None:
+        dic_trt_meaning = {trt:trt for trt in TREATMENT_DEFAULT_LIST}
         
     _plot_params(list_params,
                 list_modules,
