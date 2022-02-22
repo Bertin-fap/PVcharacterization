@@ -522,7 +522,7 @@ def build_modules_list(df_files_descp):
     
     return list_mod_selected
     
-def build_modules_filenames(working_dir,list_mod_selected):
+def build_modules_filenames(list_mod_selected,working_dir):
 
     '''Builds out of the modules type list_mod_selected the list of all filename
     related to these modules.
