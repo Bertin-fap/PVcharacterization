@@ -54,18 +54,19 @@ PLOT_PARAMS_DICT:
   - '#78f89d'
   - '#FFEB3B'
   - '#E64A19'
+  - '#D24DFF'
+  - '#E07B39'
+  - '#AC673F'
   marker_size: 30
   markers:
-  - o
-  - +
+  - o 
   - s
   - <
-  - '>'
+  - >
   - p
-  - '1'
-  - '2'
-  - '3'
-  - '4'
+  - H
+  - v
+  - ^
   ticks_fontsize: 12
   title_fontsize: 16
   y_limit_type: None

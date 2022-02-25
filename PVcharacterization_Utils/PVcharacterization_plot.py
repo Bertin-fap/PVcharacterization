@@ -349,7 +349,7 @@ def plot_params_diff(df_meta,
 
     list_modules = pd.unique(df_meta['module_type'])          # List of modules name (ID)
     if len(list_modules)>NBR_MAX_PARAMS_PLOT:
-        list_modules = list_modules[0:NBR_MAX_PARAMS_PLOT-1]
+        list_modules = list_modules[0:NBR_MAX_PARAMS_PLOT]
         print(f'WARNING: to much modules. Only the first {NBR_MAX_PARAMS_PLOT} will be plotted.')
         
     if plot_params_dict is None:
