@@ -965,6 +965,7 @@ def _build_df_meta(list_files):
     import os
     
     #3rd party imports
+    import numpy as np
     import pandas as pd
     
     COL_NAMES = GLOBAL['COL_NAMES']
@@ -988,8 +989,8 @@ def _build_df_meta(list_files):
         voltage = iv_info.IV0["Voltage"]
         current = iv_info.IV0["Current"]
         corrected_current = correct_iv_curve(voltage,current)
-        isc_corr.append(corrected_current[0])
-        fill_factor_corr.append(max(voltage*current)/(corrected_current[0]*max(voltage)))
+        isc_corr.append(np.round(corrected_current[0],3))
+        fill_factor_corr.append(np.round(max(voltage*current)/(corrected_current[0]*max(voltage)),3))
         list_files_name.append(os.path.splitext(os.path.basename(file))[0])
         
         # Add exp_id, irradiance, treatment, module_type from the filename prsing 
