@@ -1,9 +1,9 @@
 COL_NAMES:
 - Title
 - Pmax
-- Fill Factor
-- Voc
 - Isc
+- Voc
+- Fill Factor
 - Rseries
 - Rshunt
 - Vpm

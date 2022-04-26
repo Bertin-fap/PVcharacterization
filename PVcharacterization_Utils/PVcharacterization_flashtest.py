@@ -8,6 +8,7 @@ __all__ = [
     "assess_path_folders",
     "batch_filename_correction",
     "build_files_database",
+    "build_df_meta",
     "build_metadata_dataframe",
     "build_metadata_df_from_db",
     "build_modules_filenames",
@@ -115,7 +116,7 @@ def read_flashtest_file(filepath, parse_all=True):
         filename (Path): name of the .csv file
     
     Returns:
-        data (namedtuple): results of the file parsing (see summary)
+        data (namedtuple): results of the file parsing (for details see above)
     
     '''
 
@@ -437,7 +438,7 @@ def _build_metadata_dataframe(list_files_path, working_dir):
     DATA_BASE_NAME = GLOBAL['DATA_BASE_NAME']
     DATA_BASE_TABLE_EXP = GLOBAL['DATA_BASE_TABLE_EXP']
 
-    df_meta = _build_df_meta(list_files_path)
+    df_meta = build_df_meta(list_files_path)
 
     # Builds a database
     database_path = Path(working_dir) / Path(DATA_BASE_NAME)
@@ -944,7 +945,7 @@ def add_exp_to_database(working_dir, new_data_folder):
     if added_files:
         x = "\n"
         print(f'the following {len(added_files)} files has been added :\n {x.join(added_files)}')
-        df_meta = _build_df_meta(added_files)
+        df_meta = build_df_meta(added_files)
         df_meta_concat = pd.concat([sqlite_to_dataframe(working_dir,DATA_BASE_TABLE_EXP),df_meta],ignore_index=True)
         # Builds a database
         database_path = Path(working_dir) / Path(DATA_BASE_NAME)
@@ -952,8 +953,19 @@ def add_exp_to_database(working_dir, new_data_folder):
     else:
         print('The database is already up to date. No file has been added.')
 
-def _build_df_meta(list_files): 
-    ''' master function used to build the dataframe df_meta.
+def build_df_meta(list_files): 
+    ''' 
+    build_df_meta is the master function used to build the dataframe df_meta.
+    df_meta has index= module name and columns = `exp_idx` , GLOBAL['COL_NAMES'], `Isc_corr`, `Fill_Factor_corr`, `ìrradiance`,
+    `treatment`, `module_type`
+    where:
+        GLOBAL['COL_NAMES'] is defined in PVcharacterization_Utils.config and must contain 'Title', 'Pmax', 'Fill Factor',
+    'Voc','Isc', 'Rseries', 'Rshunt', 'Vpm', 'Ipm' these values are extracted from the header of the flash test .cSV files
+    
+        `Isc_corr`, `Fill_Factor_corr` are the corrected values of Isc and of the fill factor
+        
+        `ìrradiance`,`treatment`, `module_type` are obtained by parsing the filename
+    
     Args:
         list_files (list): list of files used to build the df_meta dataframe
     

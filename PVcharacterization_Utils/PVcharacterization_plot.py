@@ -1,6 +1,6 @@
 __all_ =['construct_x_y',
          'plot_params_diff',
-         "select_diff_treatment",
+         'select_diff_treatment',
          'select_params',
          ]
 
@@ -107,7 +107,7 @@ def _plot_params(params,
                     if long_label:
                         label = module_type+' '+str(x_y[0])
                     else:
-                        if num_trt==0: label = module_type
+                        label = module_type if num_trt==0 else ''  # We plot the label only once in the inner loop treatment 
                    
                     ax[idx_param, idx_trt].scatter(
                             x_y[0],
@@ -129,11 +129,13 @@ def _plot_params(params,
                     
                 if idx_trt == 0:
                     if diff: # Plot the relative evolution of the parameters
-                        if param == "Fill Factor":
+                        if (param == "Fill Factor") or (param == "Fill Factor_corr"):
                             param_ = "FF"
+                        elif param == "Isc_corr":
+                            param_ = "Isc"
                         else :
                             param_ = param
-                        
+                            
                         ax[idx_param, idx_trt].set_ylabel("$\Delta$ " + param_ + " (%)",# modif 
                                                           fontsize=plot_params_dict['labels_fontsize'])
                     else:
@@ -300,7 +302,9 @@ def select_params(list_params = None):
     '''
     COL_NAMES = GLOBAL['COL_NAMES']
 
-    list_allowed_params = list(COL_NAMES)+['Isc_corr','Fill Factor_corr']
+    list_allowed_params = list(COL_NAMES)
+    list_allowed_params.insert(list_allowed_params.index("Isc")+1, 'Isc_corr')
+    list_allowed_params.insert(list_allowed_params.index("Fill Factor")+1, 'Fill Factor_corr')
     list_allowed_params.remove('Title')
     if list_params is None:
         list_params = select_items(list_allowed_params,
