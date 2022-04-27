@@ -108,16 +108,20 @@ def _plot_params(params,
                         label = module_type+' '+str(x_y[0])
                     else:
                         label = module_type if num_trt==0 else ''  # We plot the label only once in the inner loop treatment 
-                   
+                    if plot_params_dict['irr_color_unique']=='yes':
+                        edgecolors_idx = idx_trt
+                    else:
+                        edgecolors_idx = idx_irr
                     ax[idx_param, idx_trt].scatter(
                             x_y[0],
                             x_y[1],
-                            edgecolors=plot_params_dict['marker_colors'][idx_irr] ,  #modif
+                            edgecolors=plot_params_dict['marker_colors'][edgecolors_idx] ,  #modif
+                            #edgecolors=plot_params_dict['marker_colors'][idx_irr] ,  #modif
                             facecolors='none', #modif
                             marker=plot_params_dict['markers'][idx_module],
                             label=label,
                             s=plot_params_dict['marker_size'])
-                if diff: ax[idx_param, idx_trt].axhline(y=0, color="red", linestyle="--")
+                if diff: ax[idx_param, idx_trt].axhline(y=0, color="blue", linestyle="--")
                 if idx_param == 0:
                     title = f'{dic_trt_meaning[trt[0]]} - {dic_trt_meaning[trt[1]]}' \
                             if diff else dic_trt_meaning[trt]
@@ -129,10 +133,10 @@ def _plot_params(params,
                     
                 if idx_trt == 0:
                     if diff: # Plot the relative evolution of the parameters
-                        if (param == "Fill Factor") or (param == "Fill Factor_corr"):
+                        if (param == "Fill Factor"):
                             param_ = "FF"
-                        elif param == "Isc_corr":
-                            param_ = "Isc"
+                        elif param == "Fill Factor_corr":
+                            param_ = "FF_corr" 
                         else :
                             param_ = param
                             
