@@ -73,15 +73,22 @@ def _config_pvcharacterization():
     
     # Reads the default PVcharacterization.yaml config file
     path_config_file = Path(__file__).parent / Path('PVcharacterization.yaml')
+    date1 = os.path.getmtime(path_config_file)
     with open(path_config_file) as file:
         global_ = yaml.safe_load(file)
         
     # Overwrite if a local PVcharacterization.yaml config file otherwise create it.
          
     local_config_path = get_config_dir() / Path('Pvcharacterization.yaml')
+    
     if os.path.exists(local_config_path):
-        with open(local_config_path) as file:
-            global_ = yaml.safe_load(file)
+        date2 = os.path.getmtime(local_config_path)
+        if date2>date1:
+            with open(local_config_path) as file:
+                global_ = yaml.safe_load(file)
+        else:
+            with open(local_config_path, 'w') as file:
+                outputs = yaml.dump(global_, file)
     else:
         with open(local_config_path, 'w') as file:
             outputs = yaml.dump(global_, file)

@@ -142,12 +142,13 @@ def read_flashtest_file(filepath, parse_all=True):
                           keep_default_na=False,
                           encoding=ENCODING) # encoding = latin-1 by default to avoid 
                                              # trouble with u'\xe9' with utf-8
+    df_data = df_data.replace(' -1.#IND', np.NaN)
    # https://flutterq.com/unicodedecodeerror-utf8-codec-cant-decode-byte-0xe9-in-position-10-invalid-continuation-byte/
     df_data = df_data.dropna()
     # Builds the list (ndarray) of the index of the beginnig of the data blocks (I/V and Ref cell) 
     index_data_header = np.where(
                                  df_data.iloc[:, 0].str.contains(
-                                                    "^ Volt|Ref Cell",  # Find the indice of the
+                                                    '^ Volt| Raw Voltage|Ref Cell',  # Find the indice of the
                                                     case=True,          # headers of the IV curve
                                                     regex=True,
                                                                )
