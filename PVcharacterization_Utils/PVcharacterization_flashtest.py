@@ -117,6 +117,10 @@ def read_flashtest_file(filepath, parse_all=True):
     
     Returns:
         data (namedtuple): results of the file parsing (for details see above)
+        
+    Note:
+    Amended 28/04/2022 to comply the new file format of sofware version 5.5.5. Add 
+    the dataframe  data.IV.raw to the name tuple. 
     
     '''
 
@@ -131,7 +135,7 @@ def read_flashtest_file(filepath, parse_all=True):
 
     data_struct = namedtuple(
         "PV_module_test",
-        ["meta_data", "IV0", "IV1", "IV2", "Ref_Cell0", "Ref_Cell1", "Ref_Cell2"],
+        ["meta_data", "IV0", "IV1", "IV2", "Ref_Cell0", "Ref_Cell1", "Ref_Cell2","IV_raw"],
     )
 
     df_data = pd.read_csv(filepath,
@@ -197,16 +201,29 @@ def read_flashtest_file(filepath, parse_all=True):
             dg.columns = ["Ref_Cell", "Lamp_I"]
 
         list_df.append(dg)
-
-    data = data_struct(
-        meta_data=meta_data,
-        IV0=list_df[0],
-        IV1=list_df[2],
-        IV2=list_df[4],
-        Ref_Cell0=list_df[1],
-        Ref_Cell1=list_df[3],
-        Ref_Cell2=list_df[0],
+    if len(list_df)==6:
+        data = data_struct(
+            meta_data=meta_data,
+            IV0=list_df[0],
+            IV1=list_df[2],
+            IV2=list_df[4],
+            Ref_Cell0=list_df[1],
+            Ref_Cell1=list_df[3],
+            Ref_Cell2=list_df[5],
+            IV_raw=None,
     )
+    else: # for soft ver 5.5.5 add a new dataframe IV_raw
+        data = data_struct(
+            meta_data=meta_data,
+            IV0=list_df[0],
+            IV1=list_df[2],
+            IV2=list_df[4],
+            Ref_Cell0=list_df[1],
+            Ref_Cell1=list_df[3],
+            Ref_Cell2=list_df[5],
+            IV_raw=list_df[6],
+    )       
+        
     return data
 
 def parse_filename(file,warning=False):
