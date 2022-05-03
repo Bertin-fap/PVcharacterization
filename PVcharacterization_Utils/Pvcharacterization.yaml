@@ -20,7 +20,6 @@ GEOMETRY_SELECT_DIR: 750x250
 IN_TO_MM: 25.4
 IRRADIANCE_DEFAULT_LIST:
 - 200
-- 200
 - 400
 - 600
 - 800
@@ -31,7 +30,7 @@ PARAM_UNIT_DIC:
   Fill Factor: '1'
   Fill Factor_corr: '1'
   Ipm: A
-  IrrCorr: W/m2
+  IrrCorr: W/m$^2$
   Isc: A
   Isc_corr: A
   Pmax: W
@@ -70,6 +69,8 @@ PLOT_PARAMS_DICT:
   ticks_fontsize: 12
   title_fontsize: 16
   y_limit_type: None
+  irr_color_unique: 'no'
+  face_color: 'yes'
 TREATMENT_DEFAULT_LIST:
 - T0
 - T1
@@ -81,4 +82,3 @@ TREATMENT_DEFAULT_LIST:
 - T7
 - T8
 WORKING_DIR: C:/Users/franc/PVcharacterization_files/flash test
-BIDON: for testzut

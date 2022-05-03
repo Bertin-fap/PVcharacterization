@@ -104,20 +104,30 @@ def _plot_params(params,
                 idx_trt = dic_ax[trt]
                 x,y = construct_x_y(df_meta,module_type,trt,param,diff)
                 for idx_irr,x_y in enumerate(zip(x,y)):
+                    
                     if long_label:
                         label = module_type+' '+str(x_y[0])
                     else:
-                        label = module_type if num_trt==0 else ''  # We plot the label only once in the inner loop treatment 
+                        label = module_type if num_trt==0 else ''  # We plot the label only once in the inner loop treatment
+                        
                     if plot_params_dict['irr_color_unique']=='yes':
                         edgecolors_idx = idx_trt
                     else:
                         edgecolors_idx = idx_irr
+                        
+                    if plot_params_dict['face_color']=='yes':
+                        facecolors_idx = plot_params_dict['marker_colors'][edgecolors_idx]
+                    else:
+                        facecolors_idx = 'none'
+                        
                     ax[idx_param, idx_trt].scatter(
                             x_y[0],
                             x_y[1],
                             edgecolors=plot_params_dict['marker_colors'][edgecolors_idx] ,  #modif
                             #edgecolors=plot_params_dict['marker_colors'][idx_irr] ,  #modif
-                            facecolors='none', #modif
+                            facecolors = facecolors_idx,
+                            #facecolors=plot_params_dict['marker_colors'][edgecolors_idx],
+                            #facecolors='none', #modif
                             marker=plot_params_dict['markers'][idx_module],
                             label=label,
                             s=plot_params_dict['marker_size'])
@@ -171,6 +181,9 @@ def _plot_params(params,
                bbox_transform=plt.gcf().transFigure,
                fontsize=plot_params_dict['legend_fontsize']
      )
+    suptitle = plot_params_dict['suptitle']
+    if suptitle is not None:
+        fig.suptitle(plot_params_dict['suptitle'], fontsize=plot_params_dict['suptitle_font_size'])
     plt.show()
     
 def construct_x_y(df_meta,module_type,treatment,param,diff):

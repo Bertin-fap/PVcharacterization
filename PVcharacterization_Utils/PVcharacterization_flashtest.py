@@ -137,7 +137,8 @@ def read_flashtest_file(filepath, parse_all=True):
         "PV_module_test",
         ["meta_data", "IV0", "IV1", "IV2", "Ref_Cell0", "Ref_Cell1", "Ref_Cell2","IV_raw"],
     )
-
+    # For significance of -1.#IND see:
+    #https://stackoverflow.com/questions/347920/what-do-1-inf00-1-ind00-and-1-ind-mean#:~:text=This%20specifically%20means%20a%20non-zero%20number%20divided%20by,1%29%20sqrt%20or%20log%20of%20a%20negative%20number
     df_data = pd.read_csv(filepath,
                           sep=",",
                           skiprows=0,
@@ -150,6 +151,8 @@ def read_flashtest_file(filepath, parse_all=True):
    # https://flutterq.com/unicodedecodeerror-utf8-codec-cant-decode-byte-0xe9-in-position-10-invalid-continuation-byte/
     df_data = df_data.dropna()
     # Builds the list (ndarray) of the index of the beginnig of the data blocks (I/V and Ref cell) 
+    
+    # TODO: check on Darwin platform
     index_data_header = np.where(
                                  df_data.iloc[:, 0].str.contains(
                                                     '^ Volt| Raw Voltage|Ref Cell',  # Find the indice of the
@@ -183,6 +186,7 @@ def read_flashtest_file(filepath, parse_all=True):
             Ref_Cell0=None,
             Ref_Cell1=None,
             Ref_Cell2=None,
+            IV_raw=None,
         )
         return data
 
@@ -192,7 +196,7 @@ def read_flashtest_file(filepath, parse_all=True):
             np.r_[index_data_header[i] + 1 : index_data_header[i + 1]]
         ].astype(float)
 
-        dg = dg.loc[dg[0] > 0]
+        dg = dg.loc[dg[0] > 0] # Keep only positive voltage values (physically meaningfull values)
         dg.index = list(range(len(dg)))
 
         if "Voltage" in df_data.iloc[index_data_header[i]][0]:
