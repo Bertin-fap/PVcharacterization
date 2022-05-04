@@ -139,32 +139,30 @@ def read_flashtest_file(filepath, parse_all=True):
     )
     # For significance of -1.#IND see:
     #https://stackoverflow.com/questions/347920/what-do-1-inf00-1-ind00-and-1-ind-mean#:~:text=This%20specifically%20means%20a%20non-zero%20number%20divided%20by,1%29%20sqrt%20or%20log%20of%20a%20negative%20number
+  
     df_data = pd.read_csv(filepath,
                           sep=",",
                           skiprows=0,
                           header=None,
-                          na_values=' -1.#IND ', # Takes care of " -1.#IND " values
+                          na_values=[' -1.#IND ',' -1.#IND'], # Takes care of " -1.#IND " values
                           keep_default_na=False,
                           encoding=ENCODING) # encoding = latin-1 by default to avoid 
                                              # trouble with u'\xe9' with utf-8
-    df_data = df_data.replace(' -1.#IND', np.NaN)
-   # https://flutterq.com/unicodedecodeerror-utf8-codec-cant-decode-byte-0xe9-in-position-10-invalid-continuation-byte/
     df_data = df_data.dropna()
     # Builds the list (ndarray) of the index of the beginnig of the data blocks (I/V and Ref cell) 
     
-    # TODO: check on Darwin platform
     index_data_header = np.where(
                                  df_data.iloc[:, 0].str.contains(
                                                     '^ Volt| Raw Voltage|Ref Cell',  # Find the indice of the
-                                                    case=True,          # headers of the IV curve
+                                                    case=True,                       # headers of the IV curve
                                                     regex=True,
                                                                )
                                 )[0]  # Ref Cell data
 
     index_data_header = np.insert(
         index_data_header,            
-        [0, len(index_data_header)],  # add index 0 for the beginning of the header
-        [0, len(df_data) - 3],        # add index of the last numerical value
+        [0],       # add index 0 for the beginning of the header
+        [0]        
     )
     
     # Builds the meta data dict meta_data {label:value}
@@ -175,6 +173,13 @@ def read_flashtest_file(filepath, parse_all=True):
             meta_data[key.split(":")[0]] = float(val)
         except:
             meta_data[key.split(":")[0]] = val
+            
+    skip_lines = 0 if 'Soft Ver' in meta_data.keys() else 3
+    index_data_header = np.insert(
+        index_data_header,            
+        [len(index_data_header)],  
+        [len(df_data) - skip_lines],        # add index of the last numerical value
+    )
     
     # Extract I/V curves and Ref_cell curves
     if not parse_all:

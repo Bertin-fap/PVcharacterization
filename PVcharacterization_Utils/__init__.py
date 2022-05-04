@@ -10,4 +10,4 @@ from .PVcharacterization_image import *
 from .PVcharacterization_plot import *
 from .PVcharacterization_sys import *
 from .PVcharacterization_utils import *
-
+from .PVcharacterization_control import *
