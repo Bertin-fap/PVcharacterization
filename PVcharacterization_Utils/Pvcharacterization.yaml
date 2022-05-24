@@ -82,6 +82,7 @@ TREATMENT_DEFAULT_LIST:
 - T7
 - T8
 WORKING_DIR: C:/Users/franc/PVcharacterization_files/flash test
+WORKING_DIR_EL: C:/Users/franc/PVcharacterization_files/EL
 test_type_list:
 - DH
 - XDH
