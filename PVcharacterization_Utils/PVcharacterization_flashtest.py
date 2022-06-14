@@ -120,7 +120,9 @@ def read_flashtest_file(filepath, parse_all=True):
         
     Note:
     Amended 28/04/2022 to comply the new file format of sofware version 5.5.5. Add 
-    the dataframe  data.IV.raw to the name tuple. 
+    the dataframe  data.IV.raw to the name tuple.
+    Corrected 14/06/2022 delete spurious comma in the header, the names of the blocks 
+    with Votage has no additional leading blanck.
     
     '''
 
@@ -137,23 +139,50 @@ def read_flashtest_file(filepath, parse_all=True):
         "PV_module_test",
         ["meta_data", "IV0", "IV1", "IV2", "Ref_Cell0", "Ref_Cell1", "Ref_Cell2","IV_raw"],
     )
+    
+    def read_dataframe():
+        df_data = pd.read_csv(filepath,
+                      sep=",",
+                      skiprows=0,
+                      header=None,
+                      na_values=[' -1.#IND ',' -1.#IND'], # Takes care of " -1.#IND " values
+                      keep_default_na=False,
+                      encoding=ENCODING) # encoding = latin-1 by default to avoid 
+                                         # trouble with u'\xe9' with utf-8
+        return df_data
+    
+    def _correct_dataframe():
+        
+        with open(filepath,'r') as flash:
+            text = flash.read()
+
+        replacement = ""
+        for line in text.split('\n'):
+            line = line.strip()
+            if len(line.split(',')) >2:
+                line = line[:-1]
+            replacement = replacement + line + "\n"
+
+        with open(filepath,'w') as flash:
+            flash.write(replacement)
+        
+        
     # For significance of -1.#IND see:
     #https://stackoverflow.com/questions/347920/what-do-1-inf00-1-ind00-and-1-ind-mean#:~:text=This%20specifically%20means%20a%20non-zero%20number%20divided%20by,1%29%20sqrt%20or%20log%20of%20a%20negative%20number
-  
-    df_data = pd.read_csv(filepath,
-                          sep=",",
-                          skiprows=0,
-                          header=None,
-                          na_values=[' -1.#IND ',' -1.#IND'], # Takes care of " -1.#IND " values
-                          keep_default_na=False,
-                          encoding=ENCODING) # encoding = latin-1 by default to avoid 
-                                             # trouble with u'\xe9' with utf-8
+    
+    try:
+        df_data = read_dataframe()
+    except pd.errors.ParserError:
+        print(f'WARNING:parsing error found in file {filepath} try to correct') 
+        _correct_dataframe()
+        df_data = read_dataframe()
+        
     df_data = df_data.dropna()
     # Builds the list (ndarray) of the index of the beginnig of the data blocks (I/V and Ref cell) 
     
     index_data_header = np.where(
                                  df_data.iloc[:, 0].str.contains(
-                                                    '^ Volt| Raw Voltage|Ref Cell',  # Find the indice of the
+                                                    r'^\s?Volt|\s?Raw Voltage|Ref Cell',  # Find the indice of the
                                                     case=True,                       # headers of the IV curve
                                                     regex=True,
                                                                )
