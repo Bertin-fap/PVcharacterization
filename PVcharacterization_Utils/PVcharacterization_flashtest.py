@@ -151,9 +151,9 @@ def read_flashtest_file(filepath, parse_all=True):
                           header=None,
                           na_values=[' -1.#IND ',' -1.#IND'], # Takes care of " -1.#IND " values
                           keep_default_na=False,
-                          on_bad_lines='skip',
-                          encoding=ENCODING) # encoding = latin-1 by default to avoid 
-                                             # trouble with u'\xe9' with utf-8
+                          on_bad_lines='skip',  # takes cares of spurious comma
+                          encoding=ENCODING)    # encoding = latin-1 by default to avoid 
+                                                # trouble with u'\xe9' with utf-8
         
     df_data = df_data.dropna()
     # Builds the list (ndarray) of the index of the beginnig of the data blocks (I/V and Ref cell) 
