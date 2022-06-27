@@ -36,7 +36,7 @@ from .PVcharacterization_database import (add_files_to_database,
                                           suppress_duplicate_database,
                                            )
                                        
-def read_flashtest_file(filepath, parse_all=True):
+def read_flashtest_file(filepath, parse_all=True,warning=False):
 
     '''
     The function `read_flashtest_file` reads a csv file organized as follow:
@@ -114,6 +114,8 @@ def read_flashtest_file(filepath, parse_all=True):
       
     Args:
         filename (Path): name of the .csv file
+        parse_all (boolean): if False parse only the header. If false parse the header and the I/V curves
+        warning (boolean): if true print the warning of the detection of bad lines in the csv file
     
     Returns:
         data (namedtuple): results of the file parsing (for details see above)
@@ -144,14 +146,14 @@ def read_flashtest_file(filepath, parse_all=True):
         
     # For significance of -1.#IND see:
     #https://stackoverflow.com/questions/347920/what-do-1-inf00-1-ind00-and-1-ind-mean#:~:text=This%20specifically%20means%20a%20non-zero%20number%20divided%20by,1%29%20sqrt%20or%20log%20of%20a%20negative%20number
-    
+    on_bad_lines = 'warn' if warning else 'skip'
     df_data = pd.read_csv(filepath,
                           sep=",",
                           skiprows=0,
                           header=None,
                           na_values=[' -1.#IND ',' -1.#IND'], # Takes care of " -1.#IND " values
                           keep_default_na=False,
-                          on_bad_lines='skip',  # takes cares of spurious comma
+                          on_bad_lines=on_bad_lines,  # takes cares of spurious comma
                           encoding=ENCODING)    # encoding = latin-1 by default to avoid 
                                                 # trouble with u'\xe9' with utf-8
         
