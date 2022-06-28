@@ -156,7 +156,7 @@ def read_flashtest_file(filepath, parse_all=True,warning=False):
                           on_bad_lines=on_bad_lines,  # takes cares of spurious comma
                           encoding=ENCODING)    # encoding = latin-1 by default to avoid 
                                                 # trouble with u'\xe9' with utf-8
-    #df_data = df_data.replace(r"^\s*$|''", float('NaN'), regex = True) # Takes care of 
+    df_data = df_data.replace(r"^\s*$|''", float('NaN'), regex = True) # Takes care of blanks
     df_data = df_data.dropna()
     # Builds the list (ndarray) of the index of the beginnig of the data blocks (I/V and Ref cell) 
     
@@ -183,7 +183,7 @@ def read_flashtest_file(filepath, parse_all=True,warning=False):
         except:
             meta_data[key.split(":")[0]] = val
             
-    skip_lines = 0 if 'Soft Ver' in meta_data.keys() else 3
+    skip_lines = 0 if 'Soft Ver' in meta_data.keys() else 3 # Takes care of 3 spurious lines at the end of the file with the old version
     index_data_header = np.insert(
         index_data_header,            
         [len(index_data_header)],  
