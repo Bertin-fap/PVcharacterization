@@ -1,4 +1,12 @@
-__all__ = ['read_electolum_file','py2gwyddion','crop_image']
+__all__ = ['apply_savgol_filter',
+           'crop_image',
+           'image_padding',
+           'ines_crop',
+           'laplacian_kern',
+           'py2gwyddion',
+           'read_electolum_file',
+           'sgolay2d',
+           'sgolay2d_kernel',]
 
 
 def read_electolum_file(file, pack=True):
@@ -218,3 +226,170 @@ def crop_image(file):
     croped_image = np.concatenate(tuple(images_crop), axis=0)
 
     return croped_image
+    
+def laplacian_kern(size,sigma):
+    """
+    laplacian_kern computes 2D laplacian kernel. 
+    See Digital Image Processing R. Gonzales, R. Woods p. 582; https://theailearner.com/2019/05/25/laplacian-of-gaussian-log/ 
+    
+    Args:
+        size (int): the pixel size of the kernel
+        sigma (float): the standard deviation
+    
+    Returns:
+        (array): kernel matrix
+  
+    """
+    import numpy as np
+    
+
+    mexican_hat = lambda x,y:-1/(np.pi*sigma**4)*(1-(x**2+y**2)/(2*sigma**2))*np.exp(-(x**2+y**2)/(2*sigma**2))
+
+    size = size+1 if size%2==0 else size # Force size to be odd
+    
+    x = np.linspace(-(c:=size//2), c, size)
+    x_1, y_1 = np.meshgrid(x, x)
+    kern = mexican_hat(x_1, y_1)
+    
+    kern = kern - kern.sum()/(size**2) # The kernel coefficients must sum to zero so that the response of
+                                       # the mask is zero in areas of constant grey level
+    
+    return kern
+    
+def sgolay2d_kernel ( window_size, order):
+    
+    """
+    sgolay2d_kernel computes the kernel of solvay-Golay filter.
+    see https://www.uni-muenster.de/imperia/md/content/physik_ct/pdf_intern/07_savitzky_golay_krumm.pdf
+    
+    Args:
+        window_size (int): size of the  squared image patche
+        order (int): order of the smoothing polynomial
+        
+    Return:
+       (array): kernel of size window_size*window_size
+    """
+    import itertools
+    
+    import numpy as np
+    
+    set_jacobian_row = lambda x,y: [ x**(k-n) * y**n for k in range(order+1) for n in range(k+1) ]
+    
+    
+
+    if  window_size % 2 == 0:
+        raise ValueError('window_size must be odd')
+        
+    n_terms = ( order + 1 ) * ( order + 2)  / 2.0 #number of terms in the polynomial expressio
+    if window_size**2 < n_terms:
+        raise ValueError('order is too high for the window size')
+
+    half_size = window_size // 2
+ 
+    ind = np.arange(-half_size, half_size+1)
+    
+    jacobian_mat = [set_jacobian_row(x[0], x[1]) for x in itertools.product(ind, repeat=2)]
+    
+    jacobian_pseudo_inverse = np.linalg.pinv(jacobian_mat)
+    jacobian_pseudo_inverse = [jacobian_pseudo_inverse[i].reshape(window_size, -1) 
+                               for i in range(jacobian_pseudo_inverse.shape[0])]
+    return jacobian_pseudo_inverse
+
+ 
+def image_padding(z,window_size): 
+    
+    import numpy as np
+    
+    if  window_size % 2 == 0:
+        raise ValueError('window_size must be odd')
+
+    half_size = window_size // 2
+    
+    # pad input array with appropriate values at the four borders
+    new_shape = z.shape[0] + 2*half_size, z.shape[1] + 2*half_size
+    Z = np.zeros( (new_shape) )
+    # top band
+    band = z[0, :]
+    Z[:half_size, half_size:-half_size] =  band -  np.abs( np.flipud( z[1:half_size+1, :] ) - band )
+    # bottom band
+    band = z[-1, :]
+    Z[-half_size:, half_size:-half_size] = band  + np.abs( np.flipud( z[-half_size-1:-1, :] )  -band )
+    # left band
+    band = np.tile( z[:,0].reshape(-1,1), [1,half_size])
+    Z[half_size:-half_size, :half_size] = band - np.abs( np.fliplr( z[:, 1:half_size+1] ) - band )
+    # right band
+    band = np.tile( z[:,-1].reshape(-1,1), [1,half_size] )
+    Z[half_size:-half_size, -half_size:] =  band + np.abs( np.fliplr( z[:, -half_size-1:-1] ) - band )
+    # central band
+    Z[half_size:-half_size, half_size:-half_size] = z
+
+    # top left corner
+    band = z[0,0]
+    Z[:half_size,:half_size] = band - np.abs( np.flipud(np.fliplr(z[1:half_size+1,1:half_size+1]) ) - band )
+    # bottom right corner
+    band = z[-1,-1]
+    Z[-half_size:,-half_size:] = band + np.abs( np.flipud(np.fliplr(z[-half_size-1:-1,-half_size-1:-1]) ) - band )
+
+    # top right corner
+    band = Z[half_size,-half_size:]
+    Z[:half_size,-half_size:] = band - np.abs( np.flipud(Z[half_size+1:2*half_size+1,-half_size:]) - band )
+    # bottom left corner
+    band = Z[-half_size:,half_size].reshape(-1,1)
+    Z[-half_size:,:half_size] = band - np.abs( np.fliplr(Z[-half_size:, half_size+1:2*half_size+1]) - band )
+    
+    return Z 
+    
+def apply_savgol_filter(Z,jacobian_pseudo_inverse,derivative=None):
+
+    import scipy.signal
+
+    if derivative == None:
+        m = jacobian_pseudo_inverse[0]
+        return scipy.signal.fftconvolve(Z, m, mode='valid')
+    elif derivative == 'col':
+        c = jacobian_pseudo_inverse[1]
+        return scipy.signal.fftconvolve(Z, -c, mode='valid')
+    elif derivative == 'row':
+        r = jacobian_pseudo_inverse[2]
+        return scipy.signal.fftconvolve(Z, -r, mode='valid')
+    elif derivative == 'both':
+        c = jacobian_pseudo_inverse[1]
+        r = jacobian_pseudo_inverse[2]
+        return (scipy.signal.fftconvolve(Z, -r, mode='valid'),
+                scipy.signal.fftconvolve(Z, -c, mode='valid'))
+                
+def sgolay2d (z, window_size=5, order=3, derivative=None):
+
+    jacobian_pseudo_inverse = sgolay2d_kernel( window_size, order)
+    z_padded = image_padding(z,window_size)
+    z_filtered = apply_savgol_filter(z_padded,jacobian_pseudo_inverse,derivative=derivative)
+    
+    return z_filtered
+    
+def ines_crop(image,autocrop_para):
+
+    import cv2
+    import numpy as np
+    
+    im_sg = sgolay2d(np.float32(image),
+                     autocrop_para['2D SG window_size'],
+                     autocrop_para['2D SG order'],
+                     derivative=None)
+
+    array_im_lap = cv2.filter2D(im_sg,
+                                -1,
+                                laplacian_kern(autocrop_para['laplacian kernel size'],
+                                                   autocrop_para['laplacian kernel sigma']))
+
+    ind_v = np.where(np.abs(array_im_lap.sum(axis=1)) > 
+                     np.std(array_im_lap.sum(axis=1))/autocrop_para['fraction of the std laplacian'])[0]
+
+    ind_h = np.where(np.abs(array_im_lap.sum(axis=0)) > 
+                     np.std(array_im_lap.sum(axis=0))/autocrop_para['fraction of the std laplacian'])[0]
+    ind_h = ind_h[np.where((ind_h>autocrop_para['ind_h_min'])&(ind_h<autocrop_para['ind_h_max']))[0]]
+
+    array_im_red = image[ind_v.min():ind_v.max(),ind_h.min():ind_h.max()]
+    
+    return array_im_red
+
+    
