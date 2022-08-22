@@ -1,5 +1,6 @@
 __all_ =['construct_x_y',
          'plot_params_diff',
+         'plot_params_diff_Tx',
          'select_diff_treatment',
          'select_params',
          ]
@@ -24,7 +25,7 @@ def _plot_params(params,
     '''Plots for different modules and for different parameters:
        - the relative  evolution (in %) of the parameters vs irradiance for treatment differences if diff=True
        - the parameters vs irradiance for any treatment if diff=False
-    The parameters values vs modules (ID), treatment, irradiance and are store in a dataframe like:
+    The parameters values vs modules (ID), treatment, irradiance and are stored in a dataframe like:
     
       ID                          Voc         Isc   Rseries   irradiance treatment                                                         
    JINERGY3272023326035_0200W_T0  50.5082    1.827  1.95841     200       T0  
@@ -500,3 +501,142 @@ def plot_iv_power(file=None):
         print(f'{param}={answ.meta_data[param] :.2f} {PARAM_UNIT_DIC[param]}')
         
 
+def plot_params_diff_Tx(working_dir,
+                        list_mod_selected,
+                        list_params,
+                        list_irradiance,
+                        ageing_duration,
+                        plot_params_dict,
+                        diff):
+    
+    # 3rd party import
+    import matplotlib.pyplot as plt
+    
+    # Local imports
+    from PVcharacterization_Utils.PVcharacterization_flashtest import build_metadata_df_from_db
+
+    params_nb = len(list_params)
+    treatments_nb = 1  # Only one ageing duration is used
+
+    dic_ylim = {}
+    ylim = {}
+    ylim_add = 5
+
+    # Set the figure size and the subplots
+    fig = plt.figure(figsize=(plot_params_dict['fig_width'],
+                              plot_params_dict['fig_height_unit']*params_nb+
+                              plot_params_dict['fig_title_height']))
+    gs = fig.add_gridspec(
+                          params_nb,
+                          treatments_nb,
+                          hspace=0,
+                          wspace=0
+                          )
+    ax = gs.subplots(sharex="col", sharey="row")   
+
+    # Loop on the two module types
+    for idx_module, module_type in enumerate(list_mod_selected): 
+
+        # Putting the module name in a list format for using 'build_metadata_df_from_db' and 'select_diff_treatment' functions from the 'PVcharacterization_Utils' module
+        module_name_list = [module_type]
+
+        # Setting the metadata for this module  
+        df_meta = build_metadata_df_from_db(working_dir,module_name_list,list_irradiance)
+
+        # Setting the targetted treatment duration to compare
+        list_diff_treatment = []
+        dic_trt_meaning = {}    
+        print("Please select in the poped Tkinter window the treatment difference labels corresponding to the ageing duration", ageing_duration, " of the module", list_mod_selected[idx_module])
+        list_diff_treatment.extend(select_diff_treatment(working_dir,module_name_list))
+        treatment = list_diff_treatment[0]
+        dic_trt_meaning[treatment[1]] = treatment[1]
+        dic_trt_meaning[treatment[0]] = ageing_duration  
+
+        #  Set ordinates dynamic of the plots (enlarge the irradiance dynamic)
+        dic_ylim[idx_module] = _set_ymin_ymax_param(df_meta,list_params, module_name_list,list_diff_treatment,diff,
+                                        limit_type= plot_params_dict['y_limit_type']) 
+        if idx_module == 1:
+            for param in list_params:
+                ylim[param] = [min(dic_ylim[idx_module][param][0], dic_ylim[idx_module-1][param][0])-ylim_add,
+                               max(dic_ylim[idx_module][param][1], dic_ylim[idx_module-1][param][1])+ylim_add]    
+
+
+        #  Set abcissa dynamic of the plots (enlarge the irradiance dynamic)
+        (irr_min, irr_max) = _set_xmin_xmax(list_irradiance,irr_add_nbr=plot_params_dict['irr_add_nbr'])
+
+        # Loop over the parameters
+        for idx_param, param in enumerate(list_params): 
+
+            # Building the set of values to plot
+            x,y = construct_x_y(df_meta,module_type,treatment,param,diff)
+
+            for idx_irr,x_y in enumerate(zip(x,y)):
+
+                edgecolors_idx = idx_irr
+                if plot_params_dict['face_color']=='yes':
+                    facecolors_idx = plot_params_dict['marker_colors'][edgecolors_idx]
+                else:
+                    facecolors_idx = 'none' 
+
+                ax[idx_param].scatter(
+                                       x_y[0],
+                                       x_y[1],
+                                       edgecolors=plot_params_dict['marker_colors'][edgecolors_idx] ,  #modif
+                                       facecolors = facecolors_idx,
+                                       marker=plot_params_dict['markers'][idx_module],
+                                       label=module_type,
+                                       s=plot_params_dict['marker_size'])
+
+                if diff: ax[idx_param].axhline(y=0, color="blue", linestyle="--")
+
+                if idx_param == 0:
+                    title = f'{dic_trt_meaning[treatment[0]]} - {dic_trt_meaning[treatment[1]]}' \
+                            if diff else dic_trt_meaning[treatment]
+                    ax[idx_param].set_title(title,fontsize=plot_params_dict['title_fontsize'])
+                ax[idx_param].set_xlabel("Irradiance ($W/{m^2}$)",
+                                             fontsize=plot_params_dict['labels_fontsize'])
+                if idx_module == 0:
+                    ax[idx_param].grid() 
+
+                if diff: # Plot the relative evolution of the parameters
+                    if (param == "Fill Factor"):
+                        param_ = "FF"
+                    elif param == "Fill Factor_corr":
+                        param_ = "FF_corr" 
+                    else :
+                        param_ = param
+
+                    ax[idx_param].set_ylabel("D" + param_ + " (%)",# modif 
+                                            fontsize=plot_params_dict['labels_fontsize'])
+                else:
+                    unit = GLOBAL['PARAM_UNIT_DIC'][param]
+                    ax[idx_param].set_ylabel(f'{param} ({unit})',
+                                            fontsize=plot_params_dict['labels_fontsize'])
+
+                ax[idx_param].tick_params(axis="x", rotation=90)
+                ax[idx_param].set_xticks(list_irradiance, minor=False)
+                ax[idx_param].set_xticklabels(list_irradiance, fontsize=plot_params_dict['ticks_fontsize'])
+                ax[idx_param].set_xlim([irr_min, irr_max])
+                if idx_module == 1:
+                    ax[idx_param].set_ylim(ylim[param])
+
+                for axis in ["top", "bottom", "left", "right"]:
+                    ax[idx_param].spines[axis].set_linewidth(2)                                
+    labels_handles = {
+                      label: handle for ax in fig.axes 
+                      for handle, label in zip(*ax.get_legend_handles_labels())
+                     }
+    fig.legend(
+               labels_handles.values(),
+               labels_handles.keys(),
+               loc='center left',
+               bbox_to_anchor=(plot_params_dict['bbox_x0'],
+                               plot_params_dict['bbox_y0']),
+               bbox_transform=plt.gcf().transFigure,
+               fontsize=plot_params_dict['legend_fontsize']
+     )
+    suptitle = plot_params_dict['suptitle']
+    if suptitle is not None:
+        fig.suptitle(plot_params_dict['suptitle'], fontsize=plot_params_dict['suptitle_font_size'])
+
+    plt.show()  
