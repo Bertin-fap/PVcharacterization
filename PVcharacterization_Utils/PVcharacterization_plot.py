@@ -519,8 +519,9 @@ def plot_params_diff_Tx(working_dir,
     treatments_nb = 1  # Only one ageing duration is used
 
     dic_ylim = {}
-    ylim = {}
-    ylim_add = 5
+    ylim = {}    
+    ylim_min_add = plot_params_dict['ylim_min_add']
+    ylim_max_add = plot_params_dict['ylim_max_add']
 
     # Set the figure size and the subplots
     fig = plt.figure(figsize=(plot_params_dict['fig_width'],
@@ -557,8 +558,8 @@ def plot_params_diff_Tx(working_dir,
                                         limit_type= plot_params_dict['y_limit_type']) 
         if idx_module == 1:
             for param in list_params:
-                ylim[param] = [min(dic_ylim[idx_module][param][0], dic_ylim[idx_module-1][param][0])-ylim_add,
-                               max(dic_ylim[idx_module][param][1], dic_ylim[idx_module-1][param][1])+ylim_add]    
+                ylim[param] = [min(dic_ylim[idx_module][param][0], dic_ylim[idx_module-1][param][0])+ylim_min_add,
+                               max(dic_ylim[idx_module][param][1], dic_ylim[idx_module-1][param][1])+ylim_max_add]    
 
 
         #  Set abcissa dynamic of the plots (enlarge the irradiance dynamic)
